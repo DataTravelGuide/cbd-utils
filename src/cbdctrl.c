@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <errno.h>
 #include <sysfs/libsysfs.h>
 
 #include "cbdctrl.h"
@@ -27,7 +29,12 @@ static void usage ()
 		    "\t <-c|--cache-size size>, cache size, units (K|M|G)\n"
 		    "\t <-n|--handlers count>, handler count (max %d)\n"
 		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s backend-start -d device -c 512 -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
+                    "\t\t\t%s backend-start -d device -c 512M -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\tbackend-stop, stop a backend\n"
+		    "\t <-t|--transport tid>, transport id\n"
+		    "\t <-b|--backend bid>, backend id\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -58,6 +65,7 @@ static struct option long_options[] =
 	{"help", no_argument,0, 'h'},
 	{"transport", required_argument,0, 't'},
 	{"host", required_argument,0, 'H'},
+	{"backend", required_argument,0, 'b'},
 	{"device", required_argument,0, 'd'},
 	{"format", no_argument, 0, 'f'},
 	{"cache-size", required_argument,0, 'c'},
@@ -103,6 +111,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	}
 	cbd_options_init(options);
 	options->co_cmd = cbd_get_cmd_type(argv[1]);
+	options->co_backend_id = UINT_MAX;
 
 	if (options->co_cmd == CCT_INVALID) {
 		usage();
@@ -112,7 +121,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "t:hH:d:f:c:n:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "t:hH:b:d:f:c:n:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -137,6 +146,9 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 			}
 
 			strncpy(options->co_host, optarg, sizeof(options->co_host) - 1);
+			break;
+		case 'b':
+			options->co_backend_id = strtoul(optarg, NULL, 10);
 			break;
 		case 'd':
 			if (!optarg || (strlen(optarg) == 0)) {
@@ -214,6 +226,35 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 
 	if (options->co_handlers != 0)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",handlers=%u", options->co_handlers);
+
+	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
+	sysattr = sysfs_open_attribute(adm_path);
+	if (!sysattr) {
+		printf("Failed to open '%s'\n", adm_path);
+		return -1;
+	}
+
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	sysfs_close_attribute(sysattr);
+	if (ret != 0) {
+		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	}
+
+	return ret;
+}
+
+int cbdctrl_backend_stop(cbd_opt_t *options) {
+	char adm_path[FILE_NAME_SIZE];
+	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	struct sysfs_attribute *sysattr;
+	int ret;
+
+	if (options->co_backend_id == UINT_MAX) {
+		printf("--backend-id required for backend-stop command\n");
+		return -EINVAL;
+	}
+
+	snprintf(cmd, sizeof(cmd), "op=backend-stop,backend_id=%u", options->co_backend_id);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
 	sysattr = sysfs_open_attribute(adm_path);

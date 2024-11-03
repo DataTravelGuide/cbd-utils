@@ -12,7 +12,11 @@ static int cbdctrl_run(cbd_opt_t *options) {
 		case CCT_BACKEND_START:
 			ret = cbdctrl_backend_start(options);
 			break;
+		case CCT_BACKEND_STOP:
+			ret = cbdctrl_backend_stop(options);
+			break;
 		default:
+			printf("Unknown command: %u\n", options->co_cmd);
 			ret = -1;
 			break;
 	}

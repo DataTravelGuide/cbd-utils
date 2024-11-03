@@ -17,11 +17,15 @@ static void usage ()
     fprintf(stdout, "	cbd-utils, userspace tools used to manage CBD （CXL Block Device)\n"
 		    "	Checkout the [CBD (CXL Block Device)](https://datatravelguide.github.io/dtg-blog/cbd/cbd.html) for CBD details\n\n");
     fprintf(stdout, "Sub commands:\n");
-    fprintf(stdout, "\ttp_reg, transport register command\n"
+    fprintf(stdout, "\ttp-reg, transport register command\n"
 		    "\t <-H|--host hostname>, assigned host name\n"
 		    "\t <-p|--path path>, assigned path for transport\n"
 		    "\t [-f|--format], format the path if specified, default false\n"
 		    "\t [-F|--force], format the path if specified, default false\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\ttp-unreg, transport unregister command\n"
+		    "\t <-t|--transport tid>, transport id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
@@ -138,7 +142,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "t:hH:b:d:p:f:c:n:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "h:t:H:b:d:p:f:c:n:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -149,6 +153,9 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 		case 'h':
 			usage();
 			exit(EXIT_SUCCESS);
+		case 't':
+			options->co_transport_id = strtoul(optarg, NULL, 10);
+			break;
 		case 'f':
 			options->co_format = true;
 			break;
@@ -224,6 +231,32 @@ int cbdctrl_transport_register(cbd_opt_t *opt)
 	ret = sysfs_write_attribute(sysattr, tr_buff, sizeof(tr_buff));
 	if (ret != 0) {
 		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_REGISTER);
+		ret = -1;
+	}
+err_out:
+	if (sysattr != NULL) {
+		sysfs_close_attribute(sysattr);
+	}
+	return ret;
+}
+
+int cbdctrl_transport_unregister(cbd_opt_t *opt)
+{
+	int ret = 0;
+	char tr_buff[FILE_NAME_SIZE*3] = {0};
+	struct sysfs_attribute *sysattr = NULL;
+
+	sprintf(tr_buff, "transport_id=%u", opt->co_transport_id);
+	sysattr = sysfs_open_attribute(SYSFS_CBD_TRANSPORT_UNREGISTER);
+	if (sysattr == NULL) {
+		printf("failed to open %s, exit!\n", SYSFS_CBD_TRANSPORT_UNREGISTER);
+		ret = -1;
+		goto err_out;
+	}
+
+	ret = sysfs_write_attribute(sysattr, tr_buff, sizeof(tr_buff));
+	if (ret != 0) {
+		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_UNREGISTER);
 		ret = -1;
 	}
 err_out:

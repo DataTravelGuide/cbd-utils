@@ -39,9 +39,9 @@ typedef struct cbd_options cbd_opt_t;
 typedef struct {
 	const char           *cmd_name;
 	enum CBDCTL_CMD_TYPE  cmd_type;
-} cbdctl_cmd_t;
+} cbdctrl_cmd_t;
 
-static cbdctl_cmd_t cbdctl_cmd_tables[] = {
+static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_TRANSPORT_REGISTER, CCT_TRANSPORT_REGISTER},
 	{CBDCTL_BACKEND_START, CCT_BACKEND_START},
 	{"", CCT_INVALID},
@@ -54,7 +54,7 @@ enum CBDCTL_CMD_TYPE cbd_get_cmd_type(char *cmd_str);
 
 void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options);
 
-int cbdctl_transport_register(cbd_opt_t *options);
-int cbdctl_backend_start(cbd_opt_t *options);
+int cbdctrl_transport_register(cbd_opt_t *options);
+int cbdctrl_backend_start(cbd_opt_t *options);
 
 #endif // CBDCTL_H

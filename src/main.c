@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "cbdctl.h"
+#include "cbdctrl.h"
 
-static int cbdctl_run(cbd_opt_t *options) {
+static int cbdctrl_run(cbd_opt_t *options) {
 	int ret = 0;
 	switch (options->co_cmd) {
 		case CCT_TRANSPORT_REGISTER:
-			ret = cbdctl_transport_register(options);
+			ret = cbdctrl_transport_register(options);
 			break;
 		case CCT_BACKEND_START:
-			ret = cbdctl_backend_start(options);
+			ret = cbdctrl_backend_start(options);
 			break;
 		default:
 			ret = -1;
@@ -26,7 +26,7 @@ int main (int argc, char* argv[])
 
 	cbd_options_parser(argc, argv, &options);
 
-	ret = cbdctl_run(&options);
+	ret = cbdctrl_run(&options);
 
 	return ret;
 }

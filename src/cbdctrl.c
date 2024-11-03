@@ -3,9 +3,9 @@
 #include <string.h>
 #include <sysfs/libsysfs.h>
 
-#include "cbdctl.h"
+#include "cbdctrl.h"
 
-#define CBDCTL_PROGRAM_NAME "cbdctl"
+#define CBDCTL_PROGRAM_NAME "cbdctrl"
 static void usage ()
 {
     fprintf(stdout, "Usage: ");
@@ -43,7 +43,7 @@ enum CBDCTL_CMD_TYPE cbd_get_cmd_type(char *cmd_str)
 	}
 
 	for (i = 0; i <= CCT_INVALID; i++) {
-		cbdctl_cmd_t cmd = cbdctl_cmd_tables[i];
+		cbdctrl_cmd_t cmd = cbdctrl_cmd_tables[i];
 		if (!strncmp(cmd_str, cmd.cmd_name, strlen(cmd.cmd_name))) {
 			return cmd.cmd_type;
 		}
@@ -51,7 +51,7 @@ enum CBDCTL_CMD_TYPE cbd_get_cmd_type(char *cmd_str)
 	return CCT_INVALID;
 }
 
-/* cbdctl options */
+/* cbdctrl options */
 static struct option long_options[] =
 {
 	{"help", no_argument,0, 'h'},
@@ -143,7 +143,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	}
 }
 
-int cbdctl_transport_register(cbd_opt_t *opt)
+int cbdctrl_transport_register(cbd_opt_t *opt)
 {
 	int ret = 0;
 	char tr_buff[FILE_NAME_SIZE*3] = {0};
@@ -175,7 +175,7 @@ err_out:
 	return ret;
 }
 
-int cbdctl_backend_start(cbd_opt_t *options) {
+int cbdctrl_backend_start(cbd_opt_t *options) {
 	char cmd[FILE_NAME_SIZE * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;

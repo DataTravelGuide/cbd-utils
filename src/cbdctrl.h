@@ -31,6 +31,7 @@ struct cbd_options
 	bool			co_format;
 	unsigned int		co_cache_size;
 	unsigned int		co_handlers;
+	unsigned int		co_transport_id;
 };
 
 /* Exports options as a global type */
@@ -56,5 +57,13 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options);
 
 int cbdctrl_transport_register(cbd_opt_t *options);
 int cbdctrl_backend_start(cbd_opt_t *options);
+
+#define SYSFS_TRANSPORT_BASE_PATH "/sys/bus/cbd/devices/transport"
+
+static void transport_adm_path(int transport_id, char *buffer, size_t buffer_size)
+{
+	/* Generate the path with transport_id */
+	snprintf(buffer, buffer_size, "%s%d/adm", SYSFS_TRANSPORT_BASE_PATH, transport_id);
+}
 
 #endif // CBDCTL_H

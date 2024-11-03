@@ -35,6 +35,11 @@ static void usage ()
 		    "\t <-b|--backend bid>, backend id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\tdev-start, start a block device\n"
+		    "\t <-t|--transport tid>, transport id\n"
+		    "\t <-b|--backend bid>, backend id\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s dev-start --backend 0\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -255,6 +260,35 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 	}
 
 	snprintf(cmd, sizeof(cmd), "op=backend-stop,backend_id=%u", options->co_backend_id);
+
+	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
+	sysattr = sysfs_open_attribute(adm_path);
+	if (!sysattr) {
+		printf("Failed to open '%s'\n", adm_path);
+		return -1;
+	}
+
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	sysfs_close_attribute(sysattr);
+	if (ret != 0) {
+		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	}
+
+	return ret;
+}
+
+int cbdctrl_dev_start(cbd_opt_t *options) {
+	char adm_path[FILE_NAME_SIZE];
+	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	struct sysfs_attribute *sysattr;
+	int ret;
+
+	if (options->co_backend_id == UINT_MAX) {
+		printf("--backend-id required for dev-start command\n");
+		return -EINVAL;
+	}
+
+	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", options->co_backend_id);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
 	sysattr = sysfs_open_attribute(adm_path);

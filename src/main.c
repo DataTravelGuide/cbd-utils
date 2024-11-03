@@ -3,20 +3,19 @@
 
 #include "cbdctl.h"
 
-static int cbdctl_run(cbd_opt_t *options)
-{
+static int cbdctl_run(cbd_opt_t *options) {
 	int ret = 0;
-
-	switch(options->co_cmd) {
-		case CCT_TRANSPORT_REGISTER: {
+	switch (options->co_cmd) {
+		case CCT_TRANSPORT_REGISTER:
 			ret = cbdctl_transport_register(options);
 			break;
-		};
+		case CCT_BACKEND_START:
+			ret = cbdctl_backend_start(options);
+			break;
 		default:
 			ret = -1;
 			break;
 	}
-
 	return ret;
 }
 

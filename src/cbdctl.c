@@ -21,6 +21,12 @@ static void usage ()
 		    "\t [-F|--force], format the device if specified, default false\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s tp_reg -H hostname -d device -F -f\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\tbackend-start, start a backend\n"
+		    "\t <-d|--device device>, assigned device path\n"
+		    "\t <-c|--cache-size size>, cache size in MB\n"
+		    "\t <-n|--handlers count>, handler count (max %d)\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s backend-start -d device -c 512 -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -52,6 +58,8 @@ static struct option long_options[] =
 	{"host", required_argument,0, 'H'},
 	{"device", required_argument,0, 'd'},
 	{"format", no_argument, 0, 'f'},
+	{"cache-size", required_argument,0, 'c'},
+	{"handlers", required_argument,0, 'n'},
 	{"force", no_argument, 0, 'F'},
 	{0, 0, 0, 0},
 };
@@ -78,7 +86,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "hH:d:fF", long_options, &option_index);
+		arg = getopt_long(argc, argv, "hH:d:f:c:n:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -112,6 +120,18 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 			}
 
 			strncpy(options->co_device, optarg, sizeof(options->co_device) - 1);
+			break;
+		case 'c':
+			options->co_cache_size = strtoul(optarg, NULL, 10);
+			break;
+
+		case 'n':
+			options->co_handlers = strtoul(optarg, NULL, 10);
+			if (options->co_handlers > CBD_BACKEND_HANDLERS_MAX) {
+				printf("Handlers exceed maximum of %d!\n", CBD_BACKEND_HANDLERS_MAX);
+				usage();
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case '?':
 			usage();
@@ -152,5 +172,32 @@ err_out:
 	if (sysattr != NULL) {
 		sysfs_close_attribute(sysattr);
 	}
+	return ret;
+}
+
+int cbdctl_backend_start(cbd_opt_t *options) {
+	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	struct sysfs_attribute *sysattr;
+	int ret;
+
+	snprintf(cmd, sizeof(cmd), "op=backend-start,path=%s", options->co_device);
+
+	if (options->co_cache_size != 0)
+	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",cache_size=%u", options->co_cache_size);
+
+	if (options->co_handlers != 0)
+	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",handlers=%u", options->co_handlers);
+
+	sysattr = sysfs_open_attribute("/sys/bus/cbd/devices/transport0/adm");
+	if (!sysattr) {
+		printf("Failed to open /sys/bus/cbd/devices/transport0/adm\n");
+		return -1;
+	}
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	sysfs_close_attribute(sysattr);
+	if (ret != 0) {
+		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	}
+
 	return ret;
 }

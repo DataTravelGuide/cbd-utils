@@ -3,6 +3,7 @@
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <dirent.h>
 #include <sysfs/libsysfs.h>
 
 #include "cbdctrl.h"
@@ -45,6 +46,10 @@ static void usage ()
 		    "\t <-d|--dev dev_id>, dev id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\tgc, clean up all dead objects (hosts, backends, blkdevs)\n"
+		    "\t <-t|--transport tid>, transport id\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s gc -t tid\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -342,5 +347,105 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
 	}
 
+	return ret;
+}
+
+#define OBJ_CLEAN(OBJ, OBJ_NAME, CMD_PREFIX)						\
+static int OBJ##_clean(unsigned int t_id, unsigned int id)				\
+{											\
+	char alive_path[FILE_NAME_SIZE];						\
+	char adm_path[FILE_NAME_SIZE];							\
+	char cmd[FILE_NAME_SIZE * 3] = { 0 };						\
+	struct sysfs_attribute *sysattr;						\
+	int ret;									\
+											\
+	/* Construct the path to the 'alive' file */					\
+	OBJ##_alive_path(t_id, id, alive_path, sizeof(alive_path));			\
+	/* Open and read the 'alive' status */						\
+	sysattr = sysfs_open_attribute(alive_path);					\
+	if (!sysattr) {									\
+		printf("Failed to open '%s'\n", alive_path);				\
+		return -1;								\
+	}										\
+	/* Read the attribute value */							\
+	ret = sysfs_read_attribute(sysattr);						\
+	if (ret < 0) {									\
+		printf("Failed to read attribute '%s'\n", alive_path);			\
+		sysfs_close_attribute(sysattr);						\
+		return -1;								\
+	}										\
+	if (strncmp(sysattr->value, "true", 4) == 0) {					\
+		sysfs_close_attribute(sysattr);						\
+		return 0;								\
+	}										\
+	sysfs_close_attribute(sysattr);							\
+											\
+	/* Construct the command and admin path */					\
+	snprintf(cmd, sizeof(cmd), "op="CMD_PREFIX"-clear,"CMD_PREFIX"_id=%u", id);	\
+	transport_adm_path(t_id, adm_path, sizeof(adm_path));				\
+	/* Open the admin interface and write the command */				\
+	sysattr = sysfs_open_attribute(adm_path);					\
+	if (!sysattr) {									\
+		printf("Failed to open '%s'\n", adm_path);				\
+		return -1;								\
+	}										\
+											\
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));				\
+	sysfs_close_attribute(sysattr);							\
+	if (ret != 0) {									\
+		printf("Failed to write '%s'. Error: %s\n", cmd, strerror(ret));	\
+	}										\
+											\
+	return ret;									\
+}											\
+											\
+int OBJ##s_clean(unsigned int t_id) {							\
+	char path[FILE_NAME_SIZE];							\
+	DIR *dir;									\
+	struct dirent *entry;								\
+	unsigned int id;								\
+	int ret;									\
+											\
+	transport_##OBJ##s_dir(t_id, path, sizeof(path));				\
+	dir = opendir(path);								\
+	if (!dir) {									\
+		printf("Failed to open directory '%s': %s\n", path, strerror(errno));	\
+		return -1;								\
+	}										\
+											\
+	while ((entry = readdir(dir)) != NULL) {					\
+		if (strncmp(entry->d_name, OBJ_NAME, strlen(OBJ_NAME)) == 0) {		\
+			id = strtoul(entry->d_name + strlen(OBJ_NAME), NULL, 10);	\
+			ret = OBJ##_clean(t_id, id);					\
+			if (ret) {							\
+				printf("failed to clean "OBJ_NAME"%u\n", id);		\
+				return ret;						\
+			}								\
+		}									\
+	}										\
+											\
+	closedir(dir);									\
+	return 0;									\
+}
+
+OBJ_CLEAN(blkdev, "blkdev", "dev")
+OBJ_CLEAN(backend, "backend", "backend")
+OBJ_CLEAN(host, "host", "host")
+
+int cbdctrl_gc(cbd_opt_t *options) {
+	int ret;
+
+	ret = blkdevs_clean(options->co_transport_id);
+	if (ret)
+		goto out;
+
+	ret = backends_clean(options->co_transport_id);
+	if (ret)
+		goto out;
+
+	ret = hosts_clean(options->co_transport_id);
+	if (ret)
+		goto out;
+out:
 	return ret;
 }

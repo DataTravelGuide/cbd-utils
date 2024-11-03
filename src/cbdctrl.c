@@ -23,7 +23,7 @@ static void usage ()
                     "\t\t\t%s tp_reg -H hostname -d device -F -f\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
 		    "\t <-d|--device device>, assigned device path\n"
-		    "\t <-c|--cache-size size>, cache size in MB\n"
+		    "\t <-c|--cache-size size>, cache size, units (K|M|G)\n"
 		    "\t <-n|--handlers count>, handler count (max %d)\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s backend-start -d device -c 512 -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
@@ -63,6 +63,30 @@ static struct option long_options[] =
 	{"force", no_argument, 0, 'F'},
 	{0, 0, 0, 0},
 };
+
+unsigned int opt_to_MB(const char *input) {
+	char *endptr;
+	unsigned long size = strtoul(input, &endptr, 10);
+
+	/* Convert to MiB based on unit suffix */
+	if (*endptr != '\0') {
+		if (strcasecmp(endptr, "K") == 0 || strcasecmp(endptr, "KiB") == 0) {
+			size = (size + 1023) / 1024;  /* Convert KiB to MiB, rounding up */
+		} else if (strcasecmp(endptr, "M") == 0 || strcasecmp(endptr, "MiB") == 0) {
+			/* Already in MiB, no conversion needed */
+		} else if (strcasecmp(endptr, "G") == 0 || strcasecmp(endptr, "GiB") == 0) {
+			size *= 1024;  /* Convert GiB to MiB */
+		} else {
+			fprintf(stderr, "Invalid unit for cache size: %s\n", endptr);
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		/* Assume bytes if no unit; convert to MiB, rounding up */
+		size = (size + (1024 * 1024 - 1)) / (1024 * 1024);
+	}
+
+	return (unsigned int)size;
+}
 
 /*
  * Public function that loops until command line options were parsed
@@ -122,7 +146,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 			strncpy(options->co_device, optarg, sizeof(options->co_device) - 1);
 			break;
 		case 'c':
-			options->co_cache_size = strtoul(optarg, NULL, 10);
+			options->co_cache_size = opt_to_MB(optarg);
 			break;
 
 		case 'n':

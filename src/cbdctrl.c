@@ -18,18 +18,18 @@ static void usage ()
     fprintf(stdout, "Sub commands:\n");
     fprintf(stdout, "\ttp_reg, transport register command\n"
 		    "\t <-H|--host hostname>, assigned host name\n"
-		    "\t <-d|--device device>, assigned device path\n"
-		    "\t [-f|--format], format the device if specified, default false\n"
-		    "\t [-F|--force], format the device if specified, default false\n"
+		    "\t <-p|--path path>, assigned path for transport\n"
+		    "\t [-f|--format], format the path if specified, default false\n"
+		    "\t [-F|--force], format the path if specified, default false\n"
 		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s tp_reg -H hostname -d device -F -f\n\n", CBDCTL_PROGRAM_NAME);
+                    "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
 		    "\t <-t|--transport tid>, transport id\n"
-		    "\t <-d|--device device>, assigned device path\n"
+		    "\t <-p|--path path>, assigned path for backend\n"
 		    "\t <-c|--cache-size size>, cache size, units (K|M|G)\n"
 		    "\t <-n|--handlers count>, handler count (max %d)\n"
 		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s backend-start -d device -c 512M -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
+                    "\t\t\t%s backend-start -p path -c 512M -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-stop, stop a backend\n"
 		    "\t <-t|--transport tid>, transport id\n"
 		    "\t <-b|--backend bid>, backend id\n"
@@ -40,6 +40,11 @@ static void usage ()
 		    "\t <-b|--backend bid>, backend id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s dev-start --backend 0\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\tdev-stop, stop a block device\n"
+		    "\t <-t|--transport tid>, transport id\n"
+		    "\t <-d|--dev dev_id>, dev id\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -71,7 +76,8 @@ static struct option long_options[] =
 	{"transport", required_argument,0, 't'},
 	{"host", required_argument,0, 'H'},
 	{"backend", required_argument,0, 'b'},
-	{"device", required_argument,0, 'd'},
+	{"dev", required_argument,0, 'd'},
+	{"path", required_argument,0, 'p'},
 	{"format", no_argument, 0, 'f'},
 	{"cache-size", required_argument,0, 'c'},
 	{"handlers", required_argument,0, 'n'},
@@ -117,6 +123,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	cbd_options_init(options);
 	options->co_cmd = cbd_get_cmd_type(argv[1]);
 	options->co_backend_id = UINT_MAX;
+	options->co_dev_id = UINT_MAX;
 
 	if (options->co_cmd == CCT_INVALID) {
 		usage();
@@ -126,7 +133,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "t:hH:b:d:f:c:n:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "t:hH:b:d:p:f:c:n:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -156,13 +163,16 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 			options->co_backend_id = strtoul(optarg, NULL, 10);
 			break;
 		case 'd':
+			options->co_dev_id = strtoul(optarg, NULL, 10);
+			break;
+		case 'p':
 			if (!optarg || (strlen(optarg) == 0)) {
-				printf("Device name is null or empty!!\n");
+				printf("path is null or empty!!\n");
 				usage();
 				exit(EXIT_FAILURE);
 			}
 
-			strncpy(options->co_device, optarg, sizeof(options->co_device) - 1);
+			strncpy(options->co_path, optarg, sizeof(options->co_path) - 1);
 			break;
 		case 'c':
 			options->co_cache_size = opt_to_MB(optarg);
@@ -192,13 +202,13 @@ int cbdctrl_transport_register(cbd_opt_t *opt)
 	char tr_buff[FILE_NAME_SIZE*3] = {0};
 	struct sysfs_attribute *sysattr = NULL;
 
-	if (strlen(opt->co_device) == 0 || strlen(opt->co_host) == 0) {
-		printf("device or host is null!\n");
+	if (strlen(opt->co_path) == 0 || strlen(opt->co_host) == 0) {
+		printf("path or host is null!\n");
 		ret = -1;
 		goto err_out;
 	}
 	sprintf(tr_buff, "path=%s,hostname=%s,force=%d,format=%d",
-		opt->co_device, opt->co_host, opt->co_force, opt->co_format);
+		opt->co_path, opt->co_host, opt->co_force, opt->co_format);
 	sysattr = sysfs_open_attribute(SYSFS_CBD_TRANSPORT_REGISTER);
 	if (sysattr == NULL) {
 		printf("failed to open %s, exit!\n", SYSFS_CBD_TRANSPORT_REGISTER);
@@ -224,7 +234,7 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	struct sysfs_attribute *sysattr;
 	int ret;
 
-	snprintf(cmd, sizeof(cmd), "op=backend-start,path=%s", options->co_device);
+	snprintf(cmd, sizeof(cmd), "op=backend-start,path=%s", options->co_path);
 
 	if (options->co_cache_size != 0)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",cache_size=%u", options->co_cache_size);
@@ -255,7 +265,7 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 	int ret;
 
 	if (options->co_backend_id == UINT_MAX) {
-		printf("--backend-id required for backend-stop command\n");
+		printf("--backend required for backend-stop command\n");
 		return -EINVAL;
 	}
 
@@ -284,11 +294,40 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 	int ret;
 
 	if (options->co_backend_id == UINT_MAX) {
-		printf("--backend-id required for dev-start command\n");
+		printf("--backend required for dev-start command\n");
 		return -EINVAL;
 	}
 
 	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", options->co_backend_id);
+
+	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
+	sysattr = sysfs_open_attribute(adm_path);
+	if (!sysattr) {
+		printf("Failed to open '%s'\n", adm_path);
+		return -1;
+	}
+
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	sysfs_close_attribute(sysattr);
+	if (ret != 0) {
+		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	}
+
+	return ret;
+}
+
+int cbdctrl_dev_stop(cbd_opt_t *options) {
+	char adm_path[FILE_NAME_SIZE];
+	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	struct sysfs_attribute *sysattr;
+	int ret;
+
+	if (options->co_dev_id == UINT_MAX) {
+		printf("--dev required for dev-stop command\n");
+		return -EINVAL;
+	}
+
+	snprintf(cmd, sizeof(cmd), "op=dev-stop,dev_id=%u", options->co_dev_id);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
 	sysattr = sysfs_open_attribute(adm_path);

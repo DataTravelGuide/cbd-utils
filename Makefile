@@ -109,6 +109,13 @@ all: $(OBJECTS)
 	@echo -en "\n--\nBinary file placed at" \
 			  "$(BROWN)$(BINDIR)/$(BINARY)$(END_COLOR)\n";
 
+# Install directory
+PREFIX ?= /usr/local
+
+# Install command
+install:
+	mkdir -p $(PREFIX)/bin
+	install bin/cbdctrl $(PREFIX)/bin/
 
 # Rule for object binaries compilation
 $(LIBDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)

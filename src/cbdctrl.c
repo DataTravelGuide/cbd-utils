@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
 #include <sysfs/libsysfs.h>
@@ -354,11 +355,15 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 	return ret;
 }
 
+#define MAX_RETRIES 3
+#define RETRY_INTERVAL 500 // in milliseconds
+
 int cbdctrl_dev_stop(cbd_opt_t *options) {
 	char adm_path[FILE_NAME_SIZE];
 	char cmd[FILE_NAME_SIZE * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
+	int attempt;
 
 	if (options->co_dev_id == UINT_MAX) {
 		printf("--dev required for dev-stop command\n");
@@ -374,10 +379,25 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 		return -1;
 	}
 
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	// Retry mechanism for sysfs_write_attribute
+	for (attempt = 0; attempt < MAX_RETRIES; ++attempt) {
+		ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+		if (ret == 0) {
+			break; // Success, exit the loop
+		}
+
+		printf("Attempt %d/%d failed to write command '%s'. Error: %s\n",
+			attempt + 1, MAX_RETRIES, cmd, strerror(ret));
+
+		// Wait before retrying
+		usleep(RETRY_INTERVAL * 1000); // Convert milliseconds to microseconds
+	}
+
 	sysfs_close_attribute(sysattr);
+
 	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+		printf("Failed to write command '%s' after %d attempts. Final Error: %s\n",
+			cmd, MAX_RETRIES, strerror(ret));
 	}
 
 	return ret;

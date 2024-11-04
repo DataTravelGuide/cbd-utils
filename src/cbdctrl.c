@@ -134,6 +134,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	options->co_cmd = cbd_get_cmd_type(argv[1]);
 	options->co_backend_id = UINT_MAX;
 	options->co_dev_id = UINT_MAX;
+	options->co_handlers = UINT_MAX;
 
 	if (options->co_cmd == CCT_INVALID) {
 		usage();
@@ -278,7 +279,7 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	if (options->co_cache_size != 0)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",cache_size=%u", options->co_cache_size);
 
-	if (options->co_handlers != 0)
+	if (options->co_handlers != UINT_MAX)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",handlers=%u", options->co_handlers);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));

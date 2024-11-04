@@ -8,7 +8,8 @@
 /* Max size of a file name */
 #define FILE_NAME_SIZE 256
 
-#define CBDCTL_TRANSPORT_REGISTER "tp_reg"
+#define CBDCTL_TRANSPORT_REGISTER "tp-reg"
+#define CBDCTL_TRANSPORT_UNREGISTER "tp-unreg"
 #define CBDCTL_BACKEND_START "backend-start"
 #define CBDCTL_BACKEND_STOP "backend-stop"
 #define CBDCTL_DEV_START "dev-start"
@@ -16,12 +17,14 @@
 #define CBDCTL_GC "gc"
 
 #define SYSFS_CBD_TRANSPORT_REGISTER "/sys/bus/cbd/transport_register"
+#define SYSFS_CBD_TRANSPORT_UNREGISTER "/sys/bus/cbd/transport_unregister"
 #define SYSFS_TRANSPORT_BASE_PATH "/sys/bus/cbd/devices/transport"
 
 #define CBD_BACKEND_HANDLERS_MAX 128
 
 enum CBDCTL_CMD_TYPE {
 	CCT_TRANSPORT_REGISTER	= 0,
+	CCT_TRANSPORT_UNREGISTER,
 	CCT_BACKEND_START,
 	CCT_BACKEND_STOP,
 	CCT_DEV_START,
@@ -55,6 +58,7 @@ typedef struct {
 
 static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_TRANSPORT_REGISTER, CCT_TRANSPORT_REGISTER},
+	{CBDCTL_TRANSPORT_UNREGISTER, CCT_TRANSPORT_UNREGISTER},
 	{CBDCTL_BACKEND_START, CCT_BACKEND_START},
 	{CBDCTL_BACKEND_STOP, CCT_BACKEND_STOP},
 	{CBDCTL_DEV_START, CCT_DEV_START},
@@ -71,6 +75,7 @@ enum CBDCTL_CMD_TYPE cbd_get_cmd_type(char *cmd_str);
 void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options);
 
 int cbdctrl_transport_register(cbd_opt_t *options);
+int cbdctrl_transport_unregister(cbd_opt_t *opt);
 int cbdctrl_backend_start(cbd_opt_t *options);
 int cbdctrl_backend_stop(cbd_opt_t *options);
 int cbdctrl_dev_start(cbd_opt_t *options);

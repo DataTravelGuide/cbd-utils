@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
 #include <sysfs/libsysfs.h>
@@ -17,11 +18,15 @@ static void usage ()
     fprintf(stdout, "	cbd-utils, userspace tools used to manage CBD （CXL Block Device)\n"
 		    "	Checkout the [CBD (CXL Block Device)](https://datatravelguide.github.io/dtg-blog/cbd/cbd.html) for CBD details\n\n");
     fprintf(stdout, "Sub commands:\n");
-    fprintf(stdout, "\ttp_reg, transport register command\n"
+    fprintf(stdout, "\ttp-reg, transport register command\n"
 		    "\t <-H|--host hostname>, assigned host name\n"
 		    "\t <-p|--path path>, assigned path for transport\n"
 		    "\t [-f|--format], format the path if specified, default false\n"
 		    "\t [-F|--force], format the path if specified, default false\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\ttp-unreg, transport unregister command\n"
+		    "\t <-t|--transport tid>, transport id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
@@ -129,6 +134,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	options->co_cmd = cbd_get_cmd_type(argv[1]);
 	options->co_backend_id = UINT_MAX;
 	options->co_dev_id = UINT_MAX;
+	options->co_handlers = UINT_MAX;
 
 	if (options->co_cmd == CCT_INVALID) {
 		usage();
@@ -138,7 +144,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "t:hH:b:d:p:f:c:n:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "h:t:H:b:d:p:f:c:n:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -149,6 +155,9 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 		case 'h':
 			usage();
 			exit(EXIT_SUCCESS);
+		case 't':
+			options->co_transport_id = strtoul(optarg, NULL, 10);
+			break;
 		case 'f':
 			options->co_format = true;
 			break;
@@ -233,6 +242,32 @@ err_out:
 	return ret;
 }
 
+int cbdctrl_transport_unregister(cbd_opt_t *opt)
+{
+	int ret = 0;
+	char tr_buff[FILE_NAME_SIZE*3] = {0};
+	struct sysfs_attribute *sysattr = NULL;
+
+	sprintf(tr_buff, "transport_id=%u", opt->co_transport_id);
+	sysattr = sysfs_open_attribute(SYSFS_CBD_TRANSPORT_UNREGISTER);
+	if (sysattr == NULL) {
+		printf("failed to open %s, exit!\n", SYSFS_CBD_TRANSPORT_UNREGISTER);
+		ret = -1;
+		goto err_out;
+	}
+
+	ret = sysfs_write_attribute(sysattr, tr_buff, sizeof(tr_buff));
+	if (ret != 0) {
+		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_UNREGISTER);
+		ret = -1;
+	}
+err_out:
+	if (sysattr != NULL) {
+		sysfs_close_attribute(sysattr);
+	}
+	return ret;
+}
+
 int cbdctrl_backend_start(cbd_opt_t *options) {
 	char adm_path[FILE_NAME_SIZE];
 	char cmd[FILE_NAME_SIZE * 3] = { 0 };
@@ -244,7 +279,7 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	if (options->co_cache_size != 0)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",cache_size=%u", options->co_cache_size);
 
-	if (options->co_handlers != 0)
+	if (options->co_handlers != UINT_MAX)
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",handlers=%u", options->co_handlers);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
@@ -321,11 +356,15 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 	return ret;
 }
 
+#define MAX_RETRIES 3
+#define RETRY_INTERVAL 500 // in milliseconds
+
 int cbdctrl_dev_stop(cbd_opt_t *options) {
 	char adm_path[FILE_NAME_SIZE];
 	char cmd[FILE_NAME_SIZE * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
+	int attempt;
 
 	if (options->co_dev_id == UINT_MAX) {
 		printf("--dev required for dev-stop command\n");
@@ -341,10 +380,25 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 		return -1;
 	}
 
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	// Retry mechanism for sysfs_write_attribute
+	for (attempt = 0; attempt < MAX_RETRIES; ++attempt) {
+		ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+		if (ret == 0) {
+			break; // Success, exit the loop
+		}
+
+		printf("Attempt %d/%d failed to write command '%s'. Error: %s\n",
+			attempt + 1, MAX_RETRIES, cmd, strerror(ret));
+
+		// Wait before retrying
+		usleep(RETRY_INTERVAL * 1000); // Convert milliseconds to microseconds
+	}
+
 	sysfs_close_attribute(sysattr);
+
 	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+		printf("Failed to write command '%s' after %d attempts. Final Error: %s\n",
+			cmd, MAX_RETRIES, strerror(ret));
 	}
 
 	return ret;

@@ -105,6 +105,11 @@ static inline void blkdev_alive_path(int transport_id, int dev_id, char *buffer,
 	snprintf(buffer, buffer_size, "%s%u/cbd_blkdevs/blkdev%u/alive", SYSFS_TRANSPORT_BASE_PATH, transport_id, dev_id);
 }
 
+static inline void blkdev_backend_id_path(int transport_id, int dev_id, char *buffer, size_t buffer_size)
+{
+	snprintf(buffer, buffer_size, "%s%u/cbd_blkdevs/blkdev%u/backend_id", SYSFS_TRANSPORT_BASE_PATH, transport_id, dev_id);
+}
+
 static inline void transport_backends_dir(int transport_id, char *buffer, size_t buffer_size)
 {
 	snprintf(buffer, buffer_size, "%s%u/cbd_backends/", SYSFS_TRANSPORT_BASE_PATH, transport_id);
@@ -114,5 +119,8 @@ static inline void backend_alive_path(int transport_id, int backend_id, char *bu
 {
 	snprintf(buffer, buffer_size, "%s%u/cbd_backends/backend%u/alive", SYSFS_TRANSPORT_BASE_PATH, transport_id, backend_id);
 }
+
+typedef int (*blkdev_cb_t)(unsigned int t_id, unsigned int blkdev_id);
+typedef int (*blkdev_filter_t)(unsigned int t_id, unsigned int blkdev_id, void *data);
 
 #endif // CBDCTL_H

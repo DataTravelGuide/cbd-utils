@@ -14,7 +14,6 @@
 #define CBDCTL_BACKEND_STOP "backend-stop"
 #define CBDCTL_DEV_START "dev-start"
 #define CBDCTL_DEV_STOP "dev-stop"
-#define CBDCTL_GC "gc"
 
 #define SYSFS_CBD_TRANSPORT_REGISTER "/sys/bus/cbd/transport_register"
 #define SYSFS_CBD_TRANSPORT_UNREGISTER "/sys/bus/cbd/transport_unregister"
@@ -29,7 +28,6 @@ enum CBDCTL_CMD_TYPE {
 	CCT_BACKEND_STOP,
 	CCT_DEV_START,
 	CCT_DEV_STOP,
-	CCT_GC,
 	CCT_INVALID,
 };
 
@@ -63,7 +61,6 @@ static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_BACKEND_STOP, CCT_BACKEND_STOP},
 	{CBDCTL_DEV_START, CCT_DEV_START},
 	{CBDCTL_DEV_STOP, CCT_DEV_STOP},
-	{CBDCTL_GC, CCT_GC},
 	{"", CCT_INVALID},
 };
 

@@ -51,10 +51,6 @@ static void usage ()
 		    "\t <-d|--dev dev_id>, dev id\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\tgc, clean up all dead objects (hosts, backends, blkdevs)\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s gc -t tid\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -485,21 +481,3 @@ int OBJ##s_clean(unsigned int t_id) {							\
 OBJ_CLEAN(blkdev, "blkdev", "dev")
 OBJ_CLEAN(backend, "backend", "backend")
 OBJ_CLEAN(host, "host", "host")
-
-int cbdctrl_gc(cbd_opt_t *options) {
-	int ret;
-
-	ret = blkdevs_clean(options->co_transport_id);
-	if (ret)
-		goto out;
-
-	ret = backends_clean(options->co_transport_id);
-	if (ret)
-		goto out;
-
-	ret = hosts_clean(options->co_transport_id);
-	if (ret)
-		goto out;
-out:
-	return ret;
-}

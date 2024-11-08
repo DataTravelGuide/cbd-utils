@@ -1,0 +1,44 @@
+#!/bin/bash
+
+_cbdctrl_completion() {
+    local cur prev commands sub_commands
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    commands="tp-reg tp-unreg backend-start backend-stop dev-start dev-stop"
+    
+    case "${COMP_CWORD}" in
+        1)
+            COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
+            ;;
+        *)
+            case "${COMP_WORDS[1]}" in
+                tp-reg)
+                    sub_commands="-H --host -p --path -f --format -F --force -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                tp-unreg)
+                    sub_commands="-t --transport -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                backend-start)
+                    sub_commands="-t --transport -p --path -c --cache-size -n --handlers -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                backend-stop)
+                    sub_commands="-t --transport -b --backend -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                dev-start)
+                    sub_commands="-t --transport -b --backend -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                dev-stop)
+                    sub_commands="-t --transport -d --dev -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+complete -F _cbdctrl_completion cbdctrl

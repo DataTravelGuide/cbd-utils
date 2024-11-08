@@ -110,12 +110,14 @@ all: $(OBJECTS)
 			  "$(BROWN)$(BINDIR)/$(BINARY)$(END_COLOR)\n";
 
 # Install directory
-PREFIX ?= /usr/local
+PREFIX ?= /
 
 # Install command
 install:
 	mkdir -p $(PREFIX)/bin
 	install bin/cbdctrl $(PREFIX)/bin/
+	mkdir -p $(PREFIX)/etc/bash_completion.d/
+	install bash_completion/cbdctrl $(PREFIX)/etc/bash_completion.d/cbdctrl
 
 # Rule for object binaries compilation
 $(LIBDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)

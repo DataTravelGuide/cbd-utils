@@ -485,9 +485,8 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",handlers=%u", options->co_handlers);
 
 	if (options->co_backend_id != UINT_MAX) {
-	    /* clear dead blkdevs in backend attaching */
-	    backend_blkdevs_clear(options->co_transport_id, options->co_backend_id);
-	    snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), ",backend_id=%u", options->co_backend_id);
+		printf("backend-start dont accept --backend option.\n");
+		return -EINVAL;
 	}
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));

@@ -10,9 +10,6 @@
 #include "cbdctrl.h"
 #include "libcbdsys.h"
 
-typedef int (*blkdev_cb_t)(unsigned int t_id, unsigned int blkdev_id);
-typedef int (*blkdev_filter_t)(unsigned int t_id, unsigned int blkdev_id, void *data);
-
 #define OBJ_CLEAN(OBJ, OBJ_NAME, CMD_PREFIX)						\
 static int OBJ##_clean(unsigned int t_id, unsigned int id)				\
 {											\
@@ -95,57 +92,67 @@ OBJ_CLEAN(blkdev, "blkdev", "dev")
 OBJ_CLEAN(backend, "backend", "backend")
 OBJ_CLEAN(host, "host", "host")
 
-/**
- * Iterate over each block device for the given transport ID and apply a callback if a filter condition is met.
- *
- * @param t_id          Transport ID
- * @param blkdev_cb     Callback function to invoke for each block device
- * @param blkdev_filter Filter function to determine if the callback should be applied
- * @param data          Data pointer passed to the filter function
- *
- * @return 0 on success, or an error code if a callback invocation fails
- */
-static int for_each_blkdev(unsigned int t_id, blkdev_cb_t blkdev_cb, blkdev_filter_t blkdev_filter, void *data) {
-	char path[FILE_NAME_SIZE];
-	DIR *dir;
-	struct dirent *entry;
-	unsigned int blkdev_id;
-	int ret;
+typedef int (*cbdsys_cb_t)(unsigned int t_id, unsigned int blkdev_id, void *ctx);
+typedef int (*cbdsys_filter_t)(unsigned int t_id, unsigned int blkdev_id, void *ctx);
 
-	/* Retrieve the directory path for block devices for this transport ID */
-	transport_blkdevs_dir(t_id, path, sizeof(path));
-	dir = opendir(path);
-	if (!dir) {
-		printf("Failed to open directory '%s': %s\n", path, strerror(errno));
-		return -1;
-	}
+struct cbdsys_walk_ctx {
+	cbdsys_cb_t	cb;
+	cbdsys_filter_t	filter;
+	void		*data;
+};
 
-	/* Iterate over each entry in the directory */
-	while ((entry = readdir(dir)) != NULL) {
-		/* Check if the entry name starts with "blkdev" */
-		if (strncmp(entry->d_name, "blkdev", strlen("blkdev")) == 0) {
-			/* Extract the ID from the entry name after "blkdev" prefix */
-			blkdev_id = strtoul(entry->d_name + strlen("blkdev"), NULL, 10);
+struct cbdsys_blkdev_walk_data {
+	unsigned int backend_id;
+};
 
-			/* Apply the filter function; if false, continue to next entry */
-			if (blkdev_filter && !blkdev_filter(t_id, blkdev_id, data)) {
-				continue;
-			}
+/* Macro to define object-specific iteration functions */
+#define OBJ_WALK(OBJ)                                                             \
+    static int for_each_##OBJ(unsigned int t_id, struct cbdsys_walk_ctx *walk_ctx) { \
+        char path[FILE_NAME_SIZE];                                                \
+        DIR *dir;                                                                 \
+        struct dirent *entry;                                                     \
+        unsigned int obj_id;                                                      \
+        int ret;                                                                  \
+                                                                                  \
+        /* Retrieve the directory path for the object */                          \
+        transport_##OBJ##s_dir(t_id, path, sizeof(path));                         \
+        dir = opendir(path);                                                      \
+        if (!dir) {                                                               \
+            printf("Failed to open directory '%s': %s\n", path, strerror(errno)); \
+            return -1;                                                            \
+        }                                                                         \
+                                                                                  \
+        /* Iterate over each entry in the directory */                            \
+        while ((entry = readdir(dir)) != NULL) {                                  \
+            /* Check if the entry name starts with OBJ */                         \
+            if (strncmp(entry->d_name, #OBJ, strlen(#OBJ)) == 0) {                \
+                /* Extract the ID from the entry name after OBJ prefix */         \
+                obj_id = strtoul(entry->d_name + strlen(#OBJ), NULL, 10);         \
+                                                                                  \
+                /* Apply the filter function; if false, continue to next entry */ \
+                if (walk_ctx->filter && !walk_ctx->filter(t_id, obj_id, walk_ctx->data)) { \
+                    continue;                                                     \
+                }                                                                 \
+                                                                                  \
+                /* Invoke the callback function on the object ID */               \
+                ret = walk_ctx->cb(t_id, obj_id, walk_ctx->data);                 \
+                if (ret) {                                                        \
+                    printf("Callback function failed for %s%u\n", #OBJ, obj_id);  \
+                    closedir(dir);                                                \
+                    return ret;                                                   \
+                }                                                                 \
+            }                                                                     \
+        }                                                                         \
+                                                                                  \
+        /* Close the directory after processing all entries */                    \
+        closedir(dir);                                                            \
+        return 0;                                                                 \
+    }
 
-			/* Invoke the callback function on the block device ID */
-			ret = blkdev_cb(t_id, blkdev_id);
-			if (ret) {
-				printf("Callback function failed for blkdev%u\n", blkdev_id);
-				closedir(dir);
-				return ret;
-			}
-		}
-	}
-
-	/* Close the directory after processing all entries */
-	closedir(dir);
-	return 0;
-}
+/* Example usage of the macro */
+OBJ_WALK(blkdev)
+OBJ_WALK(backend)
+OBJ_WALK(host)
 
 /**
  * Retrieve the backend ID for a block device.
@@ -192,11 +199,13 @@ static int blkdev_backend_id(unsigned int t_id, unsigned int blkdev_id, unsigned
 	return 0;
 }
 
-
 /* Filter function to match backend_id with specified data */
-static int backend_filter(unsigned int t_id, unsigned int blkdev_id, void *data) {
+static int blkdev_filter_backend(unsigned int t_id, unsigned int blkdev_id, void *data) {
 	unsigned int target_backend_id;
-	unsigned int filter_backend_id = *(unsigned int *)data;
+	struct cbdsys_blkdev_walk_data *ctx = data;
+
+	if (ctx->backend_id == UINT_MAX)
+		return true;
 
 	/* Get the backend ID of the current blkdev */
 	if (blkdev_backend_id(t_id, blkdev_id, &target_backend_id) != 0) {
@@ -204,17 +213,24 @@ static int backend_filter(unsigned int t_id, unsigned int blkdev_id, void *data)
 	}
 
 	/* Check if backend IDs match */
-	return target_backend_id == filter_backend_id;
+	return target_backend_id == ctx->backend_id;
 }
 
 /* Callback function to clean the block device */
-static int blkdev_cb_clean(unsigned int t_id, unsigned int blkdev_id) {
+static int blkdev_cb_clear(unsigned int t_id, unsigned int blkdev_id, void *data) {
 	return blkdev_clean(t_id, blkdev_id);
 }
 
 /* Main function to clear block devices associated with a specific backend */
 int backend_blkdevs_clear(unsigned int t_id, unsigned int backend_id) {
-	/* Use for_each_blkdev with the filter and callback */
-	return for_each_blkdev(t_id, blkdev_cb_clean, backend_filter, &backend_id);
-}
+	struct cbdsys_blkdev_walk_data data = { 0 };
+	struct cbdsys_walk_ctx ctx = { 0 };
 
+	data.backend_id = backend_id;
+
+	ctx.filter = blkdev_filter_backend;
+	ctx.cb = blkdev_cb_clear;
+	ctx.data = &data;
+
+	return for_each_blkdev(t_id, &ctx);
+}

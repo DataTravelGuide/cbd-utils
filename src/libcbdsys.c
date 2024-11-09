@@ -234,3 +234,63 @@ int backend_blkdevs_clear(unsigned int t_id, unsigned int backend_id) {
 
 	return for_each_blkdev(t_id, &ctx);
 }
+
+int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
+	char path[FILE_NAME_SIZE];
+	FILE *file;
+	char attribute[64];
+	uint64_t value;
+	int ret;
+
+	/* Construct the file path */
+	transport_info_path(transport_id, path, FILE_NAME_SIZE);
+
+	/* Open the file */
+	file = fopen(path, "r");
+	if (!file) {
+		printf("failed to open %s\n", path);
+		return -errno;  // Return error code
+	}
+
+	/* Read and parse each line */
+	while (fscanf(file, "%63[^:]: %lx\n", attribute, &value) == 2) {
+		if (strcmp(attribute, "magic") == 0) {
+			cbdt->magic = (typeof(cbdt->magic))value;
+		} else if (strcmp(attribute, "version") == 0) {
+			cbdt->version = (typeof(cbdt->version))value;
+		} else if (strcmp(attribute, "flags") == 0) {
+			cbdt->flags = (typeof(cbdt->flags))value;
+		} else if (strcmp(attribute, "host_area_off") == 0) {
+			cbdt->host_area_off = (typeof(cbdt->host_area_off))value;
+		} else if (strcmp(attribute, "bytes_per_host_info") == 0) {
+			cbdt->bytes_per_host_info = (typeof(cbdt->bytes_per_host_info))value;
+		} else if (strcmp(attribute, "host_num") == 0) {
+			cbdt->host_num = (typeof(cbdt->host_num))value;
+		} else if (strcmp(attribute, "backend_area_off") == 0) {
+			cbdt->backend_area_off = (typeof(cbdt->backend_area_off))value;
+		} else if (strcmp(attribute, "bytes_per_backend_info") == 0) {
+			cbdt->bytes_per_backend_info = (typeof(cbdt->bytes_per_backend_info))value;
+		} else if (strcmp(attribute, "backend_num") == 0) {
+			cbdt->backend_num = (typeof(cbdt->backend_num))value;
+		} else if (strcmp(attribute, "blkdev_area_off") == 0) {
+			cbdt->blkdev_area_off = (typeof(cbdt->blkdev_area_off))value;
+		} else if (strcmp(attribute, "bytes_per_blkdev_info") == 0) {
+			cbdt->bytes_per_blkdev_info = (typeof(cbdt->bytes_per_blkdev_info))value;
+		} else if (strcmp(attribute, "blkdev_num") == 0) {
+			cbdt->blkdev_num = (typeof(cbdt->blkdev_num))value;
+		} else if (strcmp(attribute, "segment_area_off") == 0) {
+			cbdt->segment_area_off = (typeof(cbdt->segment_area_off))value;
+		} else if (strcmp(attribute, "bytes_per_segment") == 0) {
+			cbdt->bytes_per_segment = (typeof(cbdt->bytes_per_segment))value;
+		} else if (strcmp(attribute, "segment_num") == 0) {
+			cbdt->segment_num = (typeof(cbdt->segment_num))value;
+		} else {
+			/* Unrecognized attribute, ignore */
+		}
+	}
+
+	/* Close the file */
+	fclose(file);
+
+	return 0;
+}

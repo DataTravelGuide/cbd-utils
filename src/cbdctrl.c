@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <sysfs/libsysfs.h>
+#include <jansson.h> 
 
 #include "cbdctrl.h"
 #include "libcbdsys.h"
@@ -207,6 +208,38 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	}
 }
 
+/* Function to dump cbd_transport to JSON format */
+void cbd_transport_to_json(const struct cbd_transport *cbdt) {
+	/* Create a new JSON object */
+	json_t *json_obj = json_object();
+
+	/* Add each field to the JSON object */
+	json_object_set_new(json_obj, "magic", json_stringn((const char *)&cbdt->magic, sizeof(cbdt->magic)));
+	json_object_set_new(json_obj, "version", json_integer(cbdt->version));
+	json_object_set_new(json_obj, "flags", json_integer(cbdt->flags));
+	json_object_set_new(json_obj, "host_area_off", json_integer(cbdt->host_area_off));
+	json_object_set_new(json_obj, "bytes_per_host_info", json_integer(cbdt->bytes_per_host_info));
+	json_object_set_new(json_obj, "host_num", json_integer(cbdt->host_num));
+	json_object_set_new(json_obj, "backend_area_off", json_integer(cbdt->backend_area_off));
+	json_object_set_new(json_obj, "bytes_per_backend_info", json_integer(cbdt->bytes_per_backend_info));
+	json_object_set_new(json_obj, "backend_num", json_integer(cbdt->backend_num));
+	json_object_set_new(json_obj, "blkdev_area_off", json_integer(cbdt->blkdev_area_off));
+	json_object_set_new(json_obj, "bytes_per_blkdev_info", json_integer(cbdt->bytes_per_blkdev_info));
+	json_object_set_new(json_obj, "blkdev_num", json_integer(cbdt->blkdev_num));
+	json_object_set_new(json_obj, "segment_area_off", json_integer(cbdt->segment_area_off));
+	json_object_set_new(json_obj, "bytes_per_segment", json_integer(cbdt->bytes_per_segment));
+	json_object_set_new(json_obj, "segment_num", json_integer(cbdt->segment_num));
+
+	/* Print JSON object to stdout */
+	char *json_str = json_dumps(json_obj, JSON_INDENT(4));
+	printf("%s\n", json_str);
+	printf("test\n");
+
+	/* Free allocated memory */
+	free(json_str);
+	json_decref(json_obj);
+}
+
 int cbdctrl_transport_register(cbd_opt_t *opt)
 {
 	int ret = 0;
@@ -236,6 +269,15 @@ err_out:
 	if (sysattr != NULL) {
 		sysfs_close_attribute(sysattr);
 	}
+
+	struct cbd_transport cbdt = { 0 };
+
+	ret = cbdsys_transport_init(&cbdt, 0);
+	if (ret)
+		printf("ret of cbdsys_transport_init(): %d\n", ret);
+
+	cbd_transport_to_json(&cbdt);
+
 	return ret;
 }
 

@@ -1,12 +1,20 @@
 #ifndef CBDCTRL_H
 #define CBDCTRL_H
 
-
 #include <stdbool.h>
 #include <getopt.h>
 
+
+struct cbd_host {
+	int host_id;
+	const char *host_name;
+	bool running;
+	bool alive;
+};
+
 /* Max size of a file name */
 #define FILE_NAME_SIZE 256
+#define CBD_TRANSPORT_MAX       1024                        /* Maximum number of transport instances */
 
 #define CBDCTL_TRANSPORT_REGISTER "tp-reg"
 #define CBDCTL_TRANSPORT_UNREGISTER "tp-unreg"

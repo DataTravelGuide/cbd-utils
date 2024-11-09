@@ -12,6 +12,9 @@ static int cbdctrl_run(cbd_opt_t *options) {
 		case CCT_TRANSPORT_UNREGISTER:
 			ret = cbdctrl_transport_unregister(options);
 			break;
+		case CCT_TRANSPORT_LIST:
+			ret = cbdctrl_transport_list(options);
+			break;
 		case CCT_BACKEND_START:
 			ret = cbdctrl_backend_start(options);
 			break;

@@ -133,6 +133,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	options->co_backend_id = UINT_MAX;
 	options->co_dev_id = UINT_MAX;
 	options->co_handlers = UINT_MAX;
+	options->co_transport_id = 0;
 
 	if (options->co_cmd == CCT_INVALID) {
 		usage();
@@ -215,8 +216,7 @@ void trim_newline(char *str) {
 	}
 }
 
-/* Function to dump cbd_transport to JSON format */
-void cbd_transport_to_json(struct cbd_transport *cbdt) {
+json_t *cbd_transport_to_json(struct cbd_transport *cbdt) {
 	/* Create a new JSON object */
 	json_t *json_obj = json_object();
 
@@ -248,13 +248,7 @@ void cbd_transport_to_json(struct cbd_transport *cbdt) {
 	/* Add path as a JSON string */
 	json_object_set_new(json_obj, "path", json_string(cbdt->path));
 
-	/* Print JSON object to stdout */
-	char *json_str = json_dumps(json_obj, JSON_INDENT(4));
-	printf("%s\n", json_str);
-
-	/* Free allocated memory */
-	free(json_str);
-	json_decref(json_obj);
+	return json_obj;
 }
 
 int cbdctrl_transport_register(cbd_opt_t *opt)
@@ -321,6 +315,41 @@ err_out:
 	if (sysattr != NULL) {
 		sysfs_close_attribute(sysattr);
 	}
+	return ret;
+}
+
+int cbdctrl_transport_list(cbd_opt_t *opt)
+{
+	char tr_buff[CBD_PATH_LEN * 3] = {0};
+	struct sysfs_attribute *sysattr = NULL;
+	struct cbd_transport cbdt;
+	json_t *array = json_array();
+	int ret = 0;
+
+	for (int i = 0; i < CBD_TRANSPORT_MAX; i++) {
+		ret = cbdsys_transport_init(&cbdt, i);
+		if (ret == -ENOENT) {
+			ret = 0;
+			break;
+		}
+
+		if (ret < 0) {
+			json_decref(array);
+			return ret;
+		}
+
+		// Convert transport to JSON and add to array
+		json_t *json_obj = cbd_transport_to_json(&cbdt);
+		json_array_append_new(array, json_obj);
+	}
+	// Print the JSON array
+	char *json_str = json_dumps(array, JSON_INDENT(4));
+	printf("%s\n", json_str);
+
+	// Clean up
+	json_decref(array);
+	free(json_str);
+
 	return ret;
 }
 

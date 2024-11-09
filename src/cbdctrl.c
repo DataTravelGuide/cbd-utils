@@ -30,7 +30,10 @@ static void usage ()
     fprintf(stdout, "\ttp-unreg, transport unregister command\n"
 		    "\t <-t|--transport tid>, transport id\n"
 		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
+                    "\t\t\t%s tp_unreg --transport 0\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\ttp-list, transport list command\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s tp-list\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
 		    "\t <-t|--transport tid>, transport id\n"
 		    "\t <-p|--path path>, assigned path for backend\n"

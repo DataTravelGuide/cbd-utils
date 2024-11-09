@@ -13,9 +13,9 @@
 #define OBJ_CLEAN(OBJ, OBJ_NAME, CMD_PREFIX)						\
 static int OBJ##_clean(unsigned int t_id, unsigned int id)				\
 {											\
-	char alive_path[FILE_NAME_SIZE];						\
-	char adm_path[FILE_NAME_SIZE];							\
-	char cmd[FILE_NAME_SIZE * 3] = { 0 };						\
+	char alive_path[CBD_PATH_LEN];						\
+	char adm_path[CBD_PATH_LEN];							\
+	char cmd[CBD_PATH_LEN * 3] = { 0 };						\
 	struct sysfs_attribute *sysattr;						\
 	int ret;									\
 											\
@@ -60,7 +60,7 @@ static int OBJ##_clean(unsigned int t_id, unsigned int id)				\
 }											\
 											\
 int OBJ##s_clean(unsigned int t_id) {							\
-	char path[FILE_NAME_SIZE];							\
+	char path[CBD_PATH_LEN];							\
 	DIR *dir;									\
 	struct dirent *entry;								\
 	unsigned int id;								\
@@ -108,7 +108,7 @@ struct cbdsys_blkdev_walk_data {
 /* Macro to define object-specific iteration functions */
 #define OBJ_WALK(OBJ)                                                             \
     static int for_each_##OBJ(unsigned int t_id, struct cbdsys_walk_ctx *walk_ctx) { \
-        char path[FILE_NAME_SIZE];                                                \
+        char path[CBD_PATH_LEN];                                                \
         DIR *dir;                                                                 \
         struct dirent *entry;                                                     \
         unsigned int obj_id;                                                      \
@@ -164,7 +164,7 @@ OBJ_WALK(host)
  * @return 0 on success, -EINVAL if the value is empty, or an error code on failure
  */
 static int blkdev_backend_id(unsigned int t_id, unsigned int blkdev_id, unsigned int *backend_id) {
-	char path[FILE_NAME_SIZE];
+	char path[CBD_PATH_LEN];
 	struct sysfs_attribute *sysattr;
 	int ret;
 
@@ -236,14 +236,14 @@ int backend_blkdevs_clear(unsigned int t_id, unsigned int backend_id) {
 }
 
 int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
-	char path[FILE_NAME_SIZE];
+	char path[CBD_PATH_LEN];
 	FILE *file;
 	char attribute[64];
 	uint64_t value;
 	int ret;
 
 	/* Construct the file path */
-	transport_info_path(transport_id, path, FILE_NAME_SIZE);
+	transport_info_path(transport_id, path, CBD_PATH_LEN);
 
 	/* Open the file */
 	file = fopen(path, "r");
@@ -288,9 +288,32 @@ int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
 			/* Unrecognized attribute, ignore */
 		}
 	}
+	/* Close the file */
+	fclose(file);
+
+	transport_path_path(transport_id, path, CBD_PATH_LEN);
+
+	/* Open the file for reading */
+	file = fopen(path, "r");
+	if (file == NULL) {
+		perror("Error opening file");
+		return -errno;
+	}
+
+	/* Read content from file into cbdt->path */
+	if (fgets(cbdt->path, CBD_PATH_LEN, file) == NULL) {
+		if (ferror(file)) {
+			perror("Error reading file");
+			fclose(file);
+			return -errno;
+		}
+	}
 
 	/* Close the file */
 	fclose(file);
+
+	/* Ensure null-termination of the string in cbdt->path */
+	cbdt->path[CBD_PATH_LEN - 1] = '\0';
 
 	return 0;
 }

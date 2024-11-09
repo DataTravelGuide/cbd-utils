@@ -13,7 +13,7 @@ struct cbd_host {
 };
 
 /* Max size of a file name */
-#define FILE_NAME_SIZE 256
+#define CBD_PATH_LEN 256
 #define CBD_TRANSPORT_MAX       1024                        /* Maximum number of transport instances */
 
 #define CBDCTL_TRANSPORT_REGISTER "tp-reg"
@@ -39,8 +39,8 @@ enum CBDCTL_CMD_TYPE {
 struct cbd_options
 {
 	enum CBDCTL_CMD_TYPE	co_cmd;
-	char 			co_host[FILE_NAME_SIZE];
-	char			co_path[FILE_NAME_SIZE];
+	char 			co_host[CBD_PATH_LEN];
+	char			co_path[CBD_PATH_LEN];
 	bool			co_force;
 	bool			co_format;
 	unsigned int		co_cache_size;

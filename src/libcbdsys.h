@@ -3,23 +3,7 @@
 
 #include <stdint.h>
 
-struct cbd_transport {
-	uint64_t magic;
-	int version;
-	int flags;
-	unsigned int host_area_off;
-	unsigned int bytes_per_host_info;
-	unsigned int host_num;
-	unsigned int backend_area_off;
-	unsigned int bytes_per_backend_info;
-	unsigned int backend_num;
-	unsigned int blkdev_area_off;
-	unsigned int bytes_per_blkdev_info;
-	unsigned int blkdev_num;
-	unsigned int segment_area_off;
-	unsigned int bytes_per_segment;
-	unsigned int segment_num;
-};
+#include "libcbd.h"
 
 #define SYSFS_CBD_TRANSPORT_REGISTER "/sys/bus/cbd/transport_register"
 #define SYSFS_CBD_TRANSPORT_UNREGISTER "/sys/bus/cbd/transport_unregister"
@@ -28,6 +12,11 @@ struct cbd_transport {
 static inline void transport_info_path(int transport_id, char *buffer, size_t buffer_size)
 {
 	snprintf(buffer, buffer_size, "%s%u/info", SYSFS_TRANSPORT_BASE_PATH, transport_id);
+}
+
+static inline void transport_path_path(int transport_id, char *buffer, size_t buffer_size)
+{
+	snprintf(buffer, buffer_size, "%s%u/path", SYSFS_TRANSPORT_BASE_PATH, transport_id);
 }
 
 static inline void transport_adm_path(int transport_id, char *buffer, size_t buffer_size)

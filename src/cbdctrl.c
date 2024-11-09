@@ -208,13 +208,28 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	}
 }
 
+void trim_newline(char *str) {
+	size_t len = strlen(str);
+	if (len > 0 && str[len - 1] == '\n') {
+		str[len - 1] = '\0';
+	}
+}
+
 /* Function to dump cbd_transport to JSON format */
-void cbd_transport_to_json(const struct cbd_transport *cbdt) {
+void cbd_transport_to_json(struct cbd_transport *cbdt) {
 	/* Create a new JSON object */
 	json_t *json_obj = json_object();
 
+	/* Remove trailing newline from path */
+	trim_newline(cbdt->path);
+
+	/* Format magic as a hexadecimal string */
+	char magic_str[19]; // 16 digits + "0x" prefix + null terminator
+	snprintf(magic_str, sizeof(magic_str), "0x%016lx", cbdt->magic);
+
 	/* Add each field to the JSON object */
-	json_object_set_new(json_obj, "magic", json_stringn((const char *)&cbdt->magic, sizeof(cbdt->magic)));
+	json_object_set_new(json_obj, "magic", json_string(magic_str));
+
 	json_object_set_new(json_obj, "version", json_integer(cbdt->version));
 	json_object_set_new(json_obj, "flags", json_integer(cbdt->flags));
 	json_object_set_new(json_obj, "host_area_off", json_integer(cbdt->host_area_off));
@@ -230,10 +245,12 @@ void cbd_transport_to_json(const struct cbd_transport *cbdt) {
 	json_object_set_new(json_obj, "bytes_per_segment", json_integer(cbdt->bytes_per_segment));
 	json_object_set_new(json_obj, "segment_num", json_integer(cbdt->segment_num));
 
+	/* Add path as a JSON string */
+	json_object_set_new(json_obj, "path", json_string(cbdt->path));
+
 	/* Print JSON object to stdout */
 	char *json_str = json_dumps(json_obj, JSON_INDENT(4));
 	printf("%s\n", json_str);
-	printf("test\n");
 
 	/* Free allocated memory */
 	free(json_str);
@@ -243,7 +260,7 @@ void cbd_transport_to_json(const struct cbd_transport *cbdt) {
 int cbdctrl_transport_register(cbd_opt_t *opt)
 {
 	int ret = 0;
-	char tr_buff[FILE_NAME_SIZE*3] = {0};
+	char tr_buff[CBD_PATH_LEN*3] = {0};
 	struct sysfs_attribute *sysattr = NULL;
 
 	if (strlen(opt->co_path) == 0 || strlen(opt->co_host) == 0) {
@@ -284,7 +301,7 @@ err_out:
 int cbdctrl_transport_unregister(cbd_opt_t *opt)
 {
 	int ret = 0;
-	char tr_buff[FILE_NAME_SIZE*3] = {0};
+	char tr_buff[CBD_PATH_LEN*3] = {0};
 	struct sysfs_attribute *sysattr = NULL;
 
 	sprintf(tr_buff, "transport_id=%u", opt->co_transport_id);
@@ -308,8 +325,8 @@ err_out:
 }
 
 int cbdctrl_backend_start(cbd_opt_t *options) {
-	char adm_path[FILE_NAME_SIZE];
-	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	char adm_path[CBD_PATH_LEN];
+	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
 
@@ -343,8 +360,8 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 }
 
 int cbdctrl_backend_stop(cbd_opt_t *options) {
-	char adm_path[FILE_NAME_SIZE];
-	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	char adm_path[CBD_PATH_LEN];
+	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
 
@@ -372,8 +389,8 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 }
 
 int cbdctrl_dev_start(cbd_opt_t *options) {
-	char adm_path[FILE_NAME_SIZE];
-	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	char adm_path[CBD_PATH_LEN];
+	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
 
@@ -406,8 +423,8 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 #define RETRY_INTERVAL 500 // in milliseconds
 
 int cbdctrl_dev_stop(cbd_opt_t *options) {
-	char adm_path[FILE_NAME_SIZE];
-	char cmd[FILE_NAME_SIZE * 3] = { 0 };
+	char adm_path[CBD_PATH_LEN];
+	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	int ret;
 	int attempt;

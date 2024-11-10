@@ -12,53 +12,67 @@
 #include "libcbdsys.h"
 
 #define CBDCTL_PROGRAM_NAME "cbdctrl"
+
 static void usage ()
 {
-    fprintf(stdout, "Usage: ");
-    fprintf(stdout, "%s <sub_command> [cmd_parameters]\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "Description: \n");
-    fprintf(stdout, "	cbd-utils, userspace tools used to manage CBD （CXL Block Device)\n"
-		    "	Checkout the [CBD (CXL Block Device)](https://datatravelguide.github.io/dtg-blog/cbd/cbd.html) for CBD details\n\n");
-    fprintf(stdout, "Sub commands:\n");
-    fprintf(stdout, "\ttp-reg, transport register command\n"
-		    "\t <-H|--host hostname>, assigned host name\n"
-		    "\t <-p|--path path>, assigned path for transport\n"
-		    "\t [-f|--format], format the path if specified, default false\n"
-		    "\t [-F|--force], format the path if specified, default false\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s tp_reg -H hostname -p path -F -f\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\ttp-unreg, transport unregister command\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s tp_unreg --transport 0\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\ttp-list, transport list command\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s tp-list\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\thost-list, host list command\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s host-list\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\tbackend-start, start a backend\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t <-p|--path path>, assigned path for backend\n"
-		    "\t <-c|--cache-size size>, cache size, units (K|M|G)\n"
-		    "\t <-n|--handlers count>, handler count (max %d)\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s backend-start -p path -c 512M -n 1\n\n", CBD_BACKEND_HANDLERS_MAX, CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\tbackend-stop, stop a backend\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t <-b|--backend bid>, backend id\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\tdev-start, start a block device\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t <-b|--backend bid>, backend id\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s dev-start --backend 0\n\n", CBDCTL_PROGRAM_NAME);
-    fprintf(stdout, "\tdev-stop, stop a block device\n"
-		    "\t <-t|--transport tid>, transport id\n"
-		    "\t <-d|--dev dev_id>, dev id\n"
-		    "\t [-h|--help], print this message\n"
-                    "\t\t\t%s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
+	fprintf(stdout, "usage: %s <command> [<args>]\n\n", CBDCTL_PROGRAM_NAME);
+	fprintf(stdout, "Description:\n");
+	fprintf(stdout, "   cbd-utils: userspace tools to manage CBD (CXL Block Device)\n");
+	fprintf(stdout, "   See the documentation for details on CBD:\n");
+	fprintf(stdout, "   https://datatravelguide.github.io/dtg-blog/cbd/cbd.html\n\n");
+
+	fprintf(stdout, "These are common cbdctrl commands used in various situations:\n\n");
+
+	fprintf(stdout, "Managing transports:\n");
+	fprintf(stdout, "   tp-reg          Register a new transport\n");
+	fprintf(stdout, "                   -H, --host <hostname>        Assign hostname\n");
+	fprintf(stdout, "                   -p, --path <path>            Specify transport path\n");
+	fprintf(stdout, "                   -f, --format                 Format path (default: false)\n");
+	fprintf(stdout, "                   -F, --force                  Force format path (default: false)\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s tp-reg -H hostname -p /path -F -f\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "   tp-unreg        Unregister a transport\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s tp-unreg --transport 0\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "   tp-list         List all transports\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s tp-list\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "Managing hosts:\n");
+	fprintf(stdout, "   host-list       List all hosts\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s host-list\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "Managing backends:\n");
+	fprintf(stdout, "   backend-start   Start a backend\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -p, --path <path>            Specify backend path\n");
+	fprintf(stdout, "                   -c, --cache-size <size>      Set cache size (units: K, M, G)\n");
+	fprintf(stdout, "                   -n, --handlers <count>       Set handler count (max %d)\n", CBD_BACKEND_HANDLERS_MAX);
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s backend-start -p /path -c 512M -n 1\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "   backend-stop    Stop a backend\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -b, --backend <bid>          Specify backend ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "Managing block devices:\n");
+	fprintf(stdout, "   dev-start       Start a block device\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -b, --backend <bid>          Specify backend ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s dev-start --backend 0\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "   dev-stop        Stop a block device\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -d, --dev <dev_id>           Specify device ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)

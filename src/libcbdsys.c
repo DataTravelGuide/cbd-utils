@@ -239,21 +239,30 @@ int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
 	char path[CBD_PATH_LEN];
 	FILE *file;
 	char attribute[64];
+	char value_str[64];;
 	uint64_t value;
 	int ret;
 
+	cbdt->transport_id = transport_id;
 	/* Construct the file path */
 	transport_info_path(transport_id, path, CBD_PATH_LEN);
 
 	/* Open the file */
 	file = fopen(path, "r");
 	if (!file) {
-		printf("failed to open %s\n", path);
+		//printf("failed to open %s\n", path);
 		return -errno;  // Return error code
 	}
 
 	/* Read and parse each line */
-	while (fscanf(file, "%63[^:]: %lx\n", attribute, &value) == 2) {
+	while (fscanf(file, "%63[^:]: %63s\n", attribute, value_str) == 2) {
+		/* Check if the value is in hexadecimal by looking for "0x" prefix */
+		if (strncmp(value_str, "0x", 2) == 0) {
+			sscanf(value_str, "%lx", &value);
+		} else {
+			sscanf(value_str, "%lu", &value);
+		}
+
 		if (strcmp(attribute, "magic") == 0) {
 			cbdt->magic = (typeof(cbdt->magic))value;
 		} else if (strcmp(attribute, "version") == 0) {
@@ -314,6 +323,50 @@ int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
 
 	/* Ensure null-termination of the string in cbdt->path */
 	cbdt->path[CBD_PATH_LEN - 1] = '\0';
+
+	return 0;
+}
+
+int cbdsys_host_init(struct cbd_transport *cbdt, struct cbd_host *host, unsigned int host_id)
+{
+	char path[CBD_PATH_LEN];
+	FILE *file;
+
+	// Initialize host_id
+	host->host_id = host_id;
+
+	// Read hostname
+	host_hostname_path(cbdt->transport_id, host_id, path, CBD_PATH_LEN);
+	file = fopen(path, "r");
+	if (file == NULL) {
+		perror("Error opening hostname file");
+		return -1;
+	}
+	if (fgets(host->hostname, sizeof(host->hostname), file) == NULL) {
+		fclose(file);
+		return -1;
+	}
+	// Remove newline character if present
+	host->hostname[strcspn(host->hostname, "\n")] = '\0';
+	fclose(file);
+
+	// Read alive status
+	host_alive_path(cbdt->transport_id, host_id, path, CBD_PATH_LEN);
+	file = fopen(path, "r");
+	if (file == NULL) {
+		perror("Error opening alive file");
+		return -1;
+	}
+	char alive_str[8];
+	if (fgets(alive_str, sizeof(alive_str), file) == NULL) {
+		perror("Error reading alive status");
+		fclose(file);
+		return -1;
+	}
+	fclose(file);
+
+	// Convert alive status string to boolean
+	host->alive = (strcmp(alive_str, "true\n") == 0);
 
 	return 0;
 }

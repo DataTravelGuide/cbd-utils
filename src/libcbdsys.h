@@ -35,6 +35,11 @@ static inline void host_alive_path(int transport_id, int host_id, char *buffer, 
 	snprintf(buffer, buffer_size, "%s%u/cbd_hosts/host%u/alive", SYSFS_TRANSPORT_BASE_PATH, transport_id, host_id);
 }
 
+static inline void host_hostname_path(int transport_id, int host_id, char *buffer, size_t buffer_size)
+{
+	snprintf(buffer, buffer_size, "%s%u/cbd_hosts/host%u/hostname", SYSFS_TRANSPORT_BASE_PATH, transport_id, host_id);
+}
+
 static inline void transport_blkdevs_dir(int transport_id, char *buffer, size_t buffer_size)
 {
 	snprintf(buffer, buffer_size, "%s%u/cbd_blkdevs/", SYSFS_TRANSPORT_BASE_PATH, transport_id);
@@ -63,5 +68,6 @@ static inline void backend_alive_path(int transport_id, int backend_id, char *bu
 int backend_blkdevs_clear(unsigned int t_id, unsigned int backend_id);
 
 int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id);
+int cbdsys_host_init(struct cbd_transport *cbdt, struct cbd_host *host, unsigned int host_id);
 
 #endif // CBDSYS_H

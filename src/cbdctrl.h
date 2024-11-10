@@ -5,13 +5,6 @@
 #include <getopt.h>
 
 
-struct cbd_host {
-	int host_id;
-	const char *host_name;
-	bool running;
-	bool alive;
-};
-
 /* Max size of a file name */
 #define CBD_PATH_LEN 256
 #define CBD_TRANSPORT_MAX       1024                        /* Maximum number of transport instances */
@@ -19,6 +12,7 @@ struct cbd_host {
 #define CBDCTL_TRANSPORT_REGISTER "tp-reg"
 #define CBDCTL_TRANSPORT_UNREGISTER "tp-unreg"
 #define CBDCTL_TRANSPORT_LIST "tp-list"
+#define CBDCTL_HOST_LIST "host-list"
 #define CBDCTL_BACKEND_START "backend-start"
 #define CBDCTL_BACKEND_STOP "backend-stop"
 #define CBDCTL_DEV_START "dev-start"
@@ -30,6 +24,7 @@ enum CBDCTL_CMD_TYPE {
 	CCT_TRANSPORT_REGISTER	= 0,
 	CCT_TRANSPORT_UNREGISTER,
 	CCT_TRANSPORT_LIST,
+	CCT_HOST_LIST,
 	CCT_BACKEND_START,
 	CCT_BACKEND_STOP,
 	CCT_DEV_START,
@@ -64,6 +59,7 @@ static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_TRANSPORT_REGISTER, CCT_TRANSPORT_REGISTER},
 	{CBDCTL_TRANSPORT_UNREGISTER, CCT_TRANSPORT_UNREGISTER},
 	{CBDCTL_TRANSPORT_LIST, CCT_TRANSPORT_LIST},
+	{CBDCTL_HOST_LIST, CCT_HOST_LIST},
 	{CBDCTL_BACKEND_START, CCT_BACKEND_START},
 	{CBDCTL_BACKEND_STOP, CCT_BACKEND_STOP},
 	{CBDCTL_DEV_START, CCT_DEV_START},
@@ -81,6 +77,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options);
 int cbdctrl_transport_register(cbd_opt_t *options);
 int cbdctrl_transport_unregister(cbd_opt_t *opt);
 int cbdctrl_transport_list(cbd_opt_t *opt);
+int cbdctrl_host_list(cbd_opt_t *opt);
 int cbdctrl_backend_start(cbd_opt_t *options);
 int cbdctrl_backend_stop(cbd_opt_t *options);
 int cbdctrl_dev_start(cbd_opt_t *options);

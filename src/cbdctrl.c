@@ -34,6 +34,9 @@ static void usage ()
     fprintf(stdout, "\ttp-list, transport list command\n"
 		    "\t [-h|--help], print this message\n"
                     "\t\t\t%s tp-list\n\n", CBDCTL_PROGRAM_NAME);
+    fprintf(stdout, "\thost-list, host list command\n"
+		    "\t [-h|--help], print this message\n"
+                    "\t\t\t%s host-list\n\n", CBDCTL_PROGRAM_NAME);
     fprintf(stdout, "\tbackend-start, start a backend\n"
 		    "\t <-t|--transport tid>, transport id\n"
 		    "\t <-p|--path path>, assigned path for backend\n"
@@ -357,6 +360,51 @@ int cbdctrl_transport_list(cbd_opt_t *opt)
 	free(json_str);
 
 	return ret;
+}
+
+int cbdctrl_host_list(cbd_opt_t *opt)
+{
+	struct cbd_transport cbdt;
+	json_t *array = json_array(); // Create JSON array
+	if (array == NULL) {
+		fprintf(stderr, "Error creating JSON array\n");
+		return -1;
+	}
+
+	// Initialize cbd_transport
+	int ret = cbdsys_transport_init(&cbdt, opt->co_transport_id);
+	if (ret < 0) {
+		json_decref(array);
+		return ret;
+	}
+
+	// Iterate through all hosts and generate JSON object for each
+	for (unsigned int i = 0; i < cbdt.host_num; i++) {
+		struct cbd_host host;
+		ret = cbdsys_host_init(&cbdt, &host, i); // Initialize current host
+		if (ret < 0) {
+			continue;
+		}
+
+		// Create JSON object and add fields
+		json_t *json_host = json_object();
+		json_object_set_new(json_host, "host_id", json_integer(host.host_id));
+		json_object_set_new(json_host, "hostname", json_string(host.hostname));
+		json_object_set_new(json_host, "alive", json_boolean(host.alive));
+
+		// Append JSON object to JSON array
+		json_array_append_new(array, json_host);
+	}
+
+	// Convert JSON array to a formatted string and print to stdout
+	char *json_str = json_dumps(array, JSON_INDENT(4));
+	if (json_str != NULL) {
+		printf("%s\n", json_str);
+		free(json_str);
+	}
+
+	json_decref(array); // Free JSON array memory
+	return 0;
 }
 
 int cbdctrl_backend_start(cbd_opt_t *options) {

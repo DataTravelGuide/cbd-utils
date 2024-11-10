@@ -230,11 +230,14 @@ json_t *cbd_transport_to_json(struct cbd_transport *cbdt) {
 	char magic_str[19]; // 16 digits + "0x" prefix + null terminator
 	snprintf(magic_str, sizeof(magic_str), "0x%016lx", cbdt->magic);
 
+	char flags_str[11]; // 8 digits + "0x" prefix + null terminator
+	snprintf(flags_str, sizeof(flags_str), "0x%08x", cbdt->flags);
+
 	/* Add each field to the JSON object */
 	json_object_set_new(json_obj, "magic", json_string(magic_str));
 
 	json_object_set_new(json_obj, "version", json_integer(cbdt->version));
-	json_object_set_new(json_obj, "flags", json_integer(cbdt->flags));
+	json_object_set_new(json_obj, "flags", json_string(flags_str));
 	json_object_set_new(json_obj, "host_area_off", json_integer(cbdt->host_area_off));
 	json_object_set_new(json_obj, "bytes_per_host_info", json_integer(cbdt->bytes_per_host_info));
 	json_object_set_new(json_obj, "host_num", json_integer(cbdt->host_num));

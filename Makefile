@@ -118,6 +118,8 @@ install:
 	install bin/cbdctrl $(PREFIX)/bin/
 	mkdir -p $(PREFIX)/etc/bash_completion.d/
 	install bash_completion/cbdctrl $(PREFIX)/etc/bash_completion.d/cbdctrl
+	install -d $(DESTDIR)/usr/share/man/man1
+	install -m 644 man/cbdctrl.1 $(DESTDIR)/usr/share/man/man1/cbdctrl.1
 
 # Rule for object binaries compilation
 $(LIBDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)

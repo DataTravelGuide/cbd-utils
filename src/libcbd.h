@@ -44,6 +44,9 @@ struct cbd_backend {
 	unsigned int host_id;
 	char backend_path[CBD_PATH_LEN];
 	bool alive;
+	unsigned int cache_segs;
+	unsigned int gc_percent;
+	unsigned int dev_num;
 	struct cbd_blkdev blkdevs[CBDB_BLKDEV_COUNT_MAX];
 };
 

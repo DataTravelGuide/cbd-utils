@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -403,7 +404,10 @@ int cbdsys_blkdev_init(struct cbd_transport *cbdt, struct cbd_blkdev *blkdev, un
 		perror("Error opening backend_id");
 		return -ENOENT;
 	}
-	fscanf(file, "%u", &blkdev->backend_id);
+	if (fscanf(file, "%u", &blkdev->backend_id) != 1) {
+		fclose(file);
+		return -ENOENT;
+	}
 	fclose(file);
 
 	// Load alive status
@@ -433,6 +437,97 @@ int cbdsys_blkdev_init(struct cbd_transport *cbdt, struct cbd_blkdev *blkdev, un
 	}
 	fclose(file);
 	snprintf(blkdev->dev_name, sizeof(blkdev->dev_name), CBD_DEV_NAME_FORMAT, mapped_id);
+
+	return 0;
+}
+
+int read_sysfs_value(const char *path, char *buf, size_t buf_len)
+{
+	FILE *f = fopen(path, "r");
+	if (!f) return -1;
+
+	if (fgets(buf, buf_len, f) == NULL) {
+		fclose(f);
+		return -1;
+	}
+
+	// Remove newline if present
+	buf[strcspn(buf, "\n")] = '\0';
+	fclose(f);
+	return 0;
+}
+
+int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend, unsigned int backend_id)
+{
+	char path[CBD_PATH_LEN];
+	char buf[CBD_PATH_LEN];
+	struct stat sb;
+	int ret;
+
+	// Initialize backend_id
+	backend->backend_id = backend_id;
+
+	// Read host_id
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/host_id", backend_id);
+	ret = read_sysfs_value(path, buf, sizeof(buf));
+	if (ret < 0 || buf[0] == '\0') {
+		return -ENOENT; // Return if host_id is empty
+	}
+	backend->host_id = atoi(buf);
+
+	// Read backend_path
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/path", backend_id);
+	ret = read_sysfs_value(path, backend->backend_path, sizeof(backend->backend_path));
+	if (ret < 0) {
+		return ret;
+	}
+
+	// Read alive status
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/alive", backend_id);
+	ret = read_sysfs_value(path, buf, sizeof(buf));
+	if (ret < 0) {
+		return ret;
+	}
+	backend->alive = (strcmp(buf, "true") == 0);
+
+	// Check if cache directory exists
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache", backend_id);
+	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+		// Read cache_segs
+		snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache/cache_segs", backend_id);
+		ret = read_sysfs_value(path, buf, sizeof(buf));
+		backend->cache_segs = (ret < 0) ? 0 : (unsigned int)atoi(buf);
+
+		// Read gc_percent
+		snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache/gc_percent", backend_id);
+		ret = read_sysfs_value(path, buf, sizeof(buf));
+		backend->gc_percent = (ret < 0) ? 0 : (unsigned int)atoi(buf);
+	} else {
+		// If cache directory or files don't exist, initialize values to zero
+		backend->cache_segs = 0;
+		backend->gc_percent = 0;
+	}
+
+	// Initialize block devices
+	backend->dev_num = 0;
+	for (unsigned int i = 0; i < cbdt->blkdev_num; i++) {
+		struct cbd_blkdev blkdev;
+		ret = cbdsys_blkdev_init(cbdt, &blkdev, i);
+		if (ret < 0) {
+			continue;
+		}
+
+		// Check if blkdev's backend_id matches the current backend_id
+		if (blkdev.backend_id == backend_id) {
+			// Add to backend's blkdevs array if it matches
+			if (backend->dev_num < CBDB_BLKDEV_COUNT_MAX) {
+				memcpy(&backend->blkdevs[backend->dev_num++], &blkdev, sizeof(struct cbd_blkdev));
+			} else {
+				fprintf(stderr, "Warning: Exceeded max blkdev count for backend %u\n", backend_id);
+				break;
+			}
+		}
+	}
 
 	return 0;
 }

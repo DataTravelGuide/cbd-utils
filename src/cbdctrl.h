@@ -15,6 +15,7 @@
 #define CBDCTL_HOST_LIST "host-list"
 #define CBDCTL_BACKEND_START "backend-start"
 #define CBDCTL_BACKEND_STOP "backend-stop"
+#define CBDCTL_BACKEND_LIST "backend-list"
 #define CBDCTL_DEV_START "dev-start"
 #define CBDCTL_DEV_STOP "dev-stop"
 #define CBDCTL_DEV_LIST "dev-list"
@@ -28,6 +29,7 @@ enum CBDCTL_CMD_TYPE {
 	CCT_HOST_LIST,
 	CCT_BACKEND_START,
 	CCT_BACKEND_STOP,
+	CCT_BACKEND_LIST,
 	CCT_DEV_START,
 	CCT_DEV_STOP,
 	CCT_DEV_LIST,
@@ -64,6 +66,7 @@ static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_HOST_LIST, CCT_HOST_LIST},
 	{CBDCTL_BACKEND_START, CCT_BACKEND_START},
 	{CBDCTL_BACKEND_STOP, CCT_BACKEND_STOP},
+	{CBDCTL_BACKEND_LIST, CCT_BACKEND_LIST},
 	{CBDCTL_DEV_START, CCT_DEV_START},
 	{CBDCTL_DEV_STOP, CCT_DEV_STOP},
 	{CBDCTL_DEV_LIST, CCT_DEV_LIST},
@@ -83,6 +86,7 @@ int cbdctrl_transport_list(cbd_opt_t *opt);
 int cbdctrl_host_list(cbd_opt_t *opt);
 int cbdctrl_backend_start(cbd_opt_t *options);
 int cbdctrl_backend_stop(cbd_opt_t *options);
+int cbdctrl_backend_list(cbd_opt_t *options);
 int cbdctrl_dev_start(cbd_opt_t *options);
 int cbdctrl_dev_stop(cbd_opt_t *options);
 int cbdctrl_dev_list(cbd_opt_t *options);

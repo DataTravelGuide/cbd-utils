@@ -62,6 +62,11 @@ static void usage ()
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
 
+	fprintf(stdout, "   backend-list    List all blkdevs\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s backend-list\n\n", CBDCTL_PROGRAM_NAME);
+
 	fprintf(stdout, "Managing block devices:\n");
 	fprintf(stdout, "   dev-start       Start a block device\n");
 	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
@@ -490,6 +495,75 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 
 	return ret;
 }
+
+int cbdctrl_backend_list(cbd_opt_t *options)
+{
+	struct cbd_transport cbdt;
+	json_t *array = json_array(); // Create JSON array for backends
+	if (array == NULL) {
+		fprintf(stderr, "Error creating JSON array\n");
+		return -1;
+	}
+
+	// Initialize cbd_transport
+	int ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
+	if (ret < 0) {
+		json_decref(array);
+		return ret;
+	}
+
+	// Iterate through all backends and generate JSON object for each
+	for (unsigned int i = 0; i < cbdt.backend_num; i++) {
+		struct cbd_backend backend;
+		ret = cbdsys_backend_init(&cbdt, &backend, i); // Initialize current backend
+		if (ret < 0) {
+			continue;
+		}
+
+		// Create JSON object and add fields for the backend
+		json_t *json_backend = json_object();
+		json_object_set_new(json_backend, "backend_id", json_integer(backend.backend_id));
+		json_object_set_new(json_backend, "host_id", json_integer(backend.host_id));
+		json_object_set_new(json_backend, "backend_path", json_string(backend.backend_path));
+		json_object_set_new(json_backend, "alive", json_boolean(backend.alive));
+		json_object_set_new(json_backend, "cache_segs", json_integer(backend.cache_segs));
+		json_object_set_new(json_backend, "gc_percent", json_integer(backend.gc_percent));
+
+		// Create JSON array for blkdevs within the backend
+		json_t *json_blkdevs = json_array();
+		for (unsigned int j = 0; j < backend.dev_num; j++) {
+			struct cbd_blkdev *blkdev = &backend.blkdevs[j];
+
+			// Create JSON object for each blkdev and add fields
+			json_t *json_blkdev = json_object();
+			json_object_set_new(json_blkdev, "blkdev_id", json_integer(blkdev->blkdev_id));
+			json_object_set_new(json_blkdev, "host_id", json_integer(blkdev->host_id));
+			json_object_set_new(json_blkdev, "backend_id", json_integer(blkdev->backend_id));
+			json_object_set_new(json_blkdev, "dev_name", json_string(blkdev->dev_name));
+			json_object_set_new(json_blkdev, "alive", json_boolean(blkdev->alive));
+
+			// Append blkdev JSON object to the blkdevs JSON array
+			json_array_append_new(json_blkdevs, json_blkdev);
+		}
+
+		// Add blkdevs array to the backend JSON object
+		json_object_set_new(json_backend, "blkdevs", json_blkdevs);
+
+		// Append backend JSON object to the main JSON array
+		json_array_append_new(array, json_backend);
+	}
+
+	// Convert JSON array to a formatted string and print to stdout
+	char *json_str = json_dumps(array, JSON_INDENT(4));
+	if (json_str != NULL) {
+		printf("%s\n", json_str);
+		free(json_str);
+	}
+
+	json_decref(array); // Free JSON array memory
+	return 0;
+}
+
 
 int cbdctrl_dev_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];

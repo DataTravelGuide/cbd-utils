@@ -24,6 +24,9 @@ static int cbdctrl_run(cbd_opt_t *options) {
 		case CCT_BACKEND_STOP:
 			ret = cbdctrl_backend_stop(options);
 			break;
+		case CCT_BACKEND_LIST:
+			ret = cbdctrl_backend_list(options);
+			break;
 		case CCT_DEV_START:
 			ret = cbdctrl_dev_start(options);
 			break;

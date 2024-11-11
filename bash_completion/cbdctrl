@@ -4,7 +4,7 @@ _cbdctrl_completion() {
     local cur prev commands sub_commands
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="tp-reg tp-unreg tp-list host-list backend-start backend-stop dev-start dev-stop dev-list"
+    commands="tp-reg tp-unreg tp-list host-list backend-start backend-stop backend-list dev-start dev-stop dev-list"
     
     case "${COMP_CWORD}" in
         1)
@@ -34,6 +34,10 @@ _cbdctrl_completion() {
                     ;;
                 backend-stop)
                     sub_commands="-t --transport -b --backend -h --help"
+                    COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
+                    ;;
+                backend-list)
+                    sub_commands="-t --transport -h --help"
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 dev-start)

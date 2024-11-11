@@ -490,23 +490,22 @@ int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend,
 	}
 	backend->alive = (strcmp(buf, "true") == 0);
 
-	// Check if cache directory exists
-	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache", backend_id);
-	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-		// Read cache_segs
-		snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache/cache_segs", backend_id);
-		ret = read_sysfs_value(path, buf, sizeof(buf));
-		backend->cache_segs = (ret < 0) ? 0 : (unsigned int)atoi(buf);
-
-		// Read gc_percent
-		snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache/gc_percent", backend_id);
-		ret = read_sysfs_value(path, buf, sizeof(buf));
-		backend->gc_percent = (ret < 0) ? 0 : (unsigned int)atoi(buf);
-	} else {
-		// If cache directory or files don't exist, initialize values to zero
-		backend->cache_segs = 0;
-		backend->gc_percent = 0;
+	// Read cache_segs directly from the new path
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/cache_segs", backend_id);
+	ret = read_sysfs_value(path, buf, sizeof(buf));
+	if (ret < 0) {
+		return ret;
 	}
+	backend->cache_segs = (unsigned int)atoi(buf);
+
+	// Read gc_percent directly from the new path
+	snprintf(path, sizeof(path), "/sys/bus/cbd/devices/transport0/cbd_backends/backend%u/gc_percent", backend_id);
+	ret = read_sysfs_value(path, buf, sizeof(buf));
+	if (ret < 0) {
+		return ret;
+	}
+	backend->gc_percent = (unsigned int)atoi(buf);
+
 
 	// Initialize block devices
 	backend->dev_num = 0;

@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <sysfs/libsysfs.h>
-#include <jansson.h> 
+#include <jansson.h>
 
 #include "cbdctrl.h"
 #include "libcbdsys.h"
@@ -569,6 +569,7 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
+	struct cbd_transport cbdt;
 	int ret;
 
 	if (options->co_backend_id == UINT_MAX) {
@@ -576,7 +577,13 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 		return -EINVAL;
 	}
 
-	backend_blkdevs_clear(options->co_transport_id, options->co_backend_id);
+	ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
+	if (ret)
+		return ret;
+
+	ret = cbdsys_backend_blkdevs_clear(&cbdt, options->co_backend_id);
+	if (ret)
+		return ret;
 
 	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", options->co_backend_id);
 

@@ -30,6 +30,9 @@ static int cbdctrl_run(cbd_opt_t *options) {
 		case CCT_DEV_STOP:
 			ret = cbdctrl_dev_stop(options);
 			break;
+		case CCT_DEV_LIST:
+			ret = cbdctrl_dev_list(options);
+			break;
 		default:
 			printf("Unknown command: %u\n", options->co_cmd);
 			ret = -1;

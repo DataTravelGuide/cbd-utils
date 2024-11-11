@@ -17,6 +17,7 @@
 #define CBDCTL_BACKEND_STOP "backend-stop"
 #define CBDCTL_DEV_START "dev-start"
 #define CBDCTL_DEV_STOP "dev-stop"
+#define CBDCTL_DEV_LIST "dev-list"
 
 #define CBD_BACKEND_HANDLERS_MAX 128
 
@@ -29,6 +30,7 @@ enum CBDCTL_CMD_TYPE {
 	CCT_BACKEND_STOP,
 	CCT_DEV_START,
 	CCT_DEV_STOP,
+	CCT_DEV_LIST,
 	CCT_INVALID,
 };
 
@@ -64,6 +66,7 @@ static cbdctrl_cmd_t cbdctrl_cmd_tables[] = {
 	{CBDCTL_BACKEND_STOP, CCT_BACKEND_STOP},
 	{CBDCTL_DEV_START, CCT_DEV_START},
 	{CBDCTL_DEV_STOP, CCT_DEV_STOP},
+	{CBDCTL_DEV_LIST, CCT_DEV_LIST},
 	{"", CCT_INVALID},
 };
 
@@ -82,6 +85,6 @@ int cbdctrl_backend_start(cbd_opt_t *options);
 int cbdctrl_backend_stop(cbd_opt_t *options);
 int cbdctrl_dev_start(cbd_opt_t *options);
 int cbdctrl_dev_stop(cbd_opt_t *options);
-int cbdctrl_gc(cbd_opt_t *options);
+int cbdctrl_dev_list(cbd_opt_t *options);
 
 #endif // CBDCTRL_H

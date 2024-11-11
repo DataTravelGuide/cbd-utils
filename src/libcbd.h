@@ -26,9 +26,25 @@ struct cbd_transport {
 struct cbd_host {
 	int host_id;
 	char hostname[CBD_NAME_LEN];
-	bool running;
 	bool alive;
 };
 
+struct cbd_blkdev {
+	unsigned int blkdev_id;
+	unsigned int host_id;
+	unsigned int backend_id;
+	char dev_name[CBD_NAME_LEN];
+	bool alive;
+};
+
+#define CBDB_BLKDEV_COUNT_MAX   1
+
+struct cbd_backend {
+	unsigned int backend_id;
+	unsigned int host_id;
+	char backend_path[CBD_PATH_LEN];
+	bool alive;
+	struct cbd_blkdev blkdevs[CBDB_BLKDEV_COUNT_MAX];
+};
 
 #endif // CBD_H

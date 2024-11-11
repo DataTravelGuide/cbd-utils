@@ -370,3 +370,69 @@ int cbdsys_host_init(struct cbd_transport *cbdt, struct cbd_host *host, unsigned
 
 	return 0;
 }
+
+#define CBD_SYSFS_PATH_FORMAT "/sys/bus/cbd/devices/transport%u/cbd_blkdevs/blkdev%u/%s"
+#define CBD_DEV_NAME_FORMAT "/dev/cbd%u"
+
+int cbdsys_blkdev_init(struct cbd_transport *cbdt, struct cbd_blkdev *blkdev, unsigned int blkdev_id) {
+	char path[256];
+	FILE *file;
+	unsigned int mapped_id;
+	char buffer[16];
+
+	// Load blkdev_id
+	blkdev->blkdev_id = blkdev_id;
+
+	// Load host_id
+	snprintf(path, sizeof(path), CBD_SYSFS_PATH_FORMAT, cbdt->transport_id, blkdev_id, "host_id");
+	file = fopen(path, "r");
+	if (!file) {
+		perror("Error opening host_id");
+		return -ENOENT;
+	}
+	if (fscanf(file, "%u", &blkdev->host_id) != 1) {
+		fclose(file);
+		return -ENOENT;
+	}
+	fclose(file);
+
+	// Load backend_id
+	snprintf(path, sizeof(path), CBD_SYSFS_PATH_FORMAT, cbdt->transport_id, blkdev_id, "backend_id");
+	file = fopen(path, "r");
+	if (!file) {
+		perror("Error opening backend_id");
+		return -ENOENT;
+	}
+	fscanf(file, "%u", &blkdev->backend_id);
+	fclose(file);
+
+	// Load alive status
+	snprintf(path, sizeof(path), CBD_SYSFS_PATH_FORMAT, cbdt->transport_id, blkdev_id, "alive");
+	file = fopen(path, "r");
+	if (!file) {
+		perror("Error opening alive");
+		return -ENOENT;
+	}
+	if (fgets(buffer, sizeof(buffer), file)) {
+		// Trim newline if present
+		buffer[strcspn(buffer, "\n")] = '\0';
+		blkdev->alive = (strcmp(buffer, "true") == 0);
+	}
+	fclose(file);
+
+	// Load mapped_id and set dev_name
+	snprintf(path, sizeof(path), CBD_SYSFS_PATH_FORMAT, cbdt->transport_id, blkdev_id, "mapped_id");
+	file = fopen(path, "r");
+	if (!file) {
+		perror("Error opening mapped_id");
+		return -ENOENT;
+	}
+	if (fscanf(file, "%u", &mapped_id) != 1) {
+		fclose(file);
+		return -ENOENT;
+	}
+	fclose(file);
+	snprintf(blkdev->dev_name, sizeof(blkdev->dev_name), CBD_DEV_NAME_FORMAT, mapped_id);
+
+	return 0;
+}

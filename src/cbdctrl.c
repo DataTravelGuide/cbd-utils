@@ -43,6 +43,7 @@ static void usage ()
 
 	fprintf(stdout, "Managing hosts:\n");
 	fprintf(stdout, "   host-list       List all hosts\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s host-list\n\n", CBDCTL_PROGRAM_NAME);
 
@@ -73,6 +74,11 @@ static void usage ()
 	fprintf(stdout, "                   -d, --dev <dev_id>           Specify device ID\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
+
+	fprintf(stdout, "   dev-list        List all blkdevs\n");
+	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -h, --help                   Print this help message\n");
+	fprintf(stdout, "                   Example: %s blkdev-list\n\n", CBDCTL_PROGRAM_NAME);
 }
 
 static void cbd_options_init(cbd_opt_t* options)
@@ -562,4 +568,51 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 	}
 
 	return ret;
+}
+
+int cbdctrl_dev_list(cbd_opt_t *opt)
+{
+	struct cbd_transport cbdt;
+	json_t *array = json_array(); // Create JSON array
+	if (array == NULL) {
+		fprintf(stderr, "Error creating JSON array\n");
+		return -1;
+	}
+
+	// Initialize cbd_transport
+	int ret = cbdsys_transport_init(&cbdt, opt->co_transport_id);
+	if (ret < 0) {
+		json_decref(array);
+		return ret;
+	}
+
+	// Iterate through all blkdevs and generate JSON object for each
+	for (unsigned int i = 0; i < cbdt.blkdev_num; i++) {
+		struct cbd_blkdev blkdev;
+		ret = cbdsys_blkdev_init(&cbdt, &blkdev, i); // Initialize current blkdev
+		if (ret < 0) {
+			continue;
+		}
+
+		// Create JSON object and add fields
+		json_t *json_blkdev = json_object();
+		json_object_set_new(json_blkdev, "blkdev_id", json_integer(blkdev.blkdev_id));
+		json_object_set_new(json_blkdev, "host_id", json_integer(blkdev.host_id));
+		json_object_set_new(json_blkdev, "backend_id", json_integer(blkdev.backend_id));
+		json_object_set_new(json_blkdev, "dev_name", json_string(blkdev.dev_name));
+		json_object_set_new(json_blkdev, "alive", json_boolean(blkdev.alive));
+
+		// Append JSON object to JSON array
+		json_array_append_new(array, json_blkdev);
+	}
+
+	// Convert JSON array to a formatted string and print to stdout
+	char *json_str = json_dumps(array, JSON_INDENT(4));
+	if (json_str != NULL) {
+		printf("%s\n", json_str);
+		free(json_str);
+	}
+
+	json_decref(array); // Free JSON array memory
+	return 0;
 }

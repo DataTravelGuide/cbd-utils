@@ -57,5 +57,6 @@ int cbdsys_host_init(struct cbd_transport *cbdt, struct cbd_host *host, unsigned
 int cbdsys_blkdev_init(struct cbd_transport *cbdt, struct cbd_blkdev *blkdev, unsigned int blkdev_id);
 int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend, unsigned int backend_id);
 int cbdsys_find_backend_id_from_path(struct cbd_transport *cbdt, char *path, unsigned int *backend_id);
+int cbdsys_write_value(const char *path, const char *value);
 
 #endif // CBDSYS_H

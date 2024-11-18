@@ -424,3 +424,24 @@ int cbdsys_find_backend_id_from_path(struct cbd_transport *cbdt, char *path, uns
 
 	return -ENOENT;
 }
+
+int cbdsys_write_value(const char *path, const char *value)
+{
+	struct sysfs_attribute *sysattr;
+	int ret;
+
+	sysattr = sysfs_open_attribute(path);
+	if (sysattr == NULL) {
+		printf("failed to open %s, exit!\n", path);
+		return -1;
+	}
+
+	ret = sysfs_write_attribute(sysattr, value, strlen(value));
+	if (ret != 0) {
+		printf("failed to write %s to %s, exit!\n", value, path);
+		goto out;
+	}
+out:
+	sysfs_close_attribute(sysattr);
+	return ret;
+}

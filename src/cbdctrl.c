@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
-#include <sysfs/libsysfs.h>
 #include <jansson.h>
 
 #include "cbdctrl.h"
@@ -299,63 +298,28 @@ int cbdctrl_transport_register(cbd_opt_t *opt)
 
 	if (strlen(opt->co_path) == 0 || strlen(opt->co_host) == 0) {
 		printf("path or host is null!\n");
-		ret = -1;
-		goto err_out;
+		return -EINVAL;
 	}
+
 	sprintf(tr_buff, "path=%s,hostname=%s,force=%d,format=%d",
 		opt->co_path, opt->co_host, opt->co_force, opt->co_format);
-	sysattr = sysfs_open_attribute(SYSFS_CBD_TRANSPORT_REGISTER);
-	if (sysattr == NULL) {
-		printf("failed to open %s, exit!\n", SYSFS_CBD_TRANSPORT_REGISTER);
-		ret = -1;
-		goto err_out;
-	}
 
-	ret = sysfs_write_attribute(sysattr, tr_buff, sizeof(tr_buff));
-	if (ret != 0) {
-		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_REGISTER);
-		ret = -1;
-		goto err_out;
-	}
-	ret = 0;
-err_out:
-	if (sysattr != NULL) {
-		sysfs_close_attribute(sysattr);
-	}
-
-	return ret;
+	return cbdsys_write_value(SYSFS_CBD_TRANSPORT_REGISTER, tr_buff);
 }
 
 int cbdctrl_transport_unregister(cbd_opt_t *opt)
 {
 	int ret = 0;
 	char tr_buff[CBD_PATH_LEN*3] = {0};
-	struct sysfs_attribute *sysattr = NULL;
 
 	sprintf(tr_buff, "transport_id=%u", opt->co_transport_id);
-	sysattr = sysfs_open_attribute(SYSFS_CBD_TRANSPORT_UNREGISTER);
-	if (sysattr == NULL) {
-		printf("failed to open %s, exit!\n", SYSFS_CBD_TRANSPORT_UNREGISTER);
-		ret = -1;
-		goto err_out;
-	}
 
-	ret = sysfs_write_attribute(sysattr, tr_buff, sizeof(tr_buff));
-	if (ret != 0) {
-		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_UNREGISTER);
-		ret = -1;
-	}
-err_out:
-	if (sysattr != NULL) {
-		sysfs_close_attribute(sysattr);
-	}
-	return ret;
+	return cbdsys_write_value(SYSFS_CBD_TRANSPORT_UNREGISTER, tr_buff);
 }
 
 int cbdctrl_transport_list(cbd_opt_t *opt)
 {
 	char tr_buff[CBD_PATH_LEN * 3] = {0};
-	struct sysfs_attribute *sysattr = NULL;
 	struct cbd_transport cbdt;
 	json_t *array = json_array();
 	int ret = 0;
@@ -436,7 +400,6 @@ static int dev_start(unsigned int transport_id, unsigned int backend_id)
 {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
-	struct sysfs_attribute *sysattr;
 	struct cbd_transport cbdt;
 	struct cbd_backend old_backend, new_backend;
 	bool found = false;
@@ -465,19 +428,10 @@ static int dev_start(unsigned int transport_id, unsigned int backend_id)
 
 	/* Get the sysfs attribute path */
 	transport_adm_path(transport_id, adm_path, sizeof(adm_path));
-	sysattr = sysfs_open_attribute(adm_path);
-	if (!sysattr) {
-		printf("Failed to open '%s'\n", adm_path);
-		return -1;
-	}
 
-	/* Write the dev-start command */
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
-	sysfs_close_attribute(sysattr);
-	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	ret = cbdsys_write_value(adm_path, cmd);
+	if (ret)
 		return ret;
-	}
 
 	/* Get information about the backend after dev-start */
 	ret = cbdsys_backend_init(&cbdt, &new_backend, backend_id);
@@ -517,7 +471,6 @@ next:
 int cbdctrl_backend_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
-	struct sysfs_attribute *sysattr;
 	struct cbd_transport cbdt;
 	unsigned int backend_id;
 	int ret;
@@ -538,18 +491,9 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	}
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
-	sysattr = sysfs_open_attribute(adm_path);
-	if (!sysattr) {
-		printf("Failed to open '%s'\n", adm_path);
-		return -1;
-	}
-
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
-	sysfs_close_attribute(sysattr);
-	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+	ret = cbdsys_write_value(adm_path, cmd);
+	if (ret)
 		return ret;
-	}
 
 	ret = cbdsys_find_backend_id_from_path(&cbdt, options->co_path, &backend_id);
 	if (ret) {
@@ -566,7 +510,6 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 int cbdctrl_backend_stop(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
-	struct sysfs_attribute *sysattr;
 	int ret;
 
 	if (options->co_backend_id == UINT_MAX) {
@@ -577,19 +520,7 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 	snprintf(cmd, sizeof(cmd), "op=backend-stop,backend_id=%u", options->co_backend_id);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
-	sysattr = sysfs_open_attribute(adm_path);
-	if (!sysattr) {
-		printf("Failed to open '%s'\n", adm_path);
-		return -1;
-	}
-
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
-	sysfs_close_attribute(sysattr);
-	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
-	}
-
-	return ret;
+	return cbdsys_write_value(adm_path, cmd);
 }
 
 int cbdctrl_backend_list(cbd_opt_t *options)
@@ -675,7 +606,6 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 int cbdctrl_dev_stop(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
-	struct sysfs_attribute *sysattr;
 	int ret;
 	int attempt;
 
@@ -687,18 +617,12 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 	snprintf(cmd, sizeof(cmd), "op=dev-stop,dev_id=%u", options->co_dev_id);
 
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
-	sysattr = sysfs_open_attribute(adm_path);
-	if (!sysattr) {
-		printf("Failed to open '%s'\n", adm_path);
-		return -1;
-	}
 
 	// Retry mechanism for sysfs_write_attribute
 	for (attempt = 0; attempt < MAX_RETRIES; ++attempt) {
-		ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
-		if (ret == 0) {
+		ret = cbdsys_write_value(adm_path, cmd);
+		if (ret == 0)
 			break; // Success, exit the loop
-		}
 
 		printf("Attempt %d/%d failed to write command '%s'. Error: %s\n",
 			attempt + 1, MAX_RETRIES, cmd, strerror(ret));
@@ -706,8 +630,6 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 		// Wait before retrying
 		usleep(RETRY_INTERVAL * 1000); // Convert milliseconds to microseconds
 	}
-
-	sysfs_close_attribute(sysattr);
 
 	if (ret != 0) {
 		printf("Failed to write command '%s' after %d attempts. Final Error: %s\n",

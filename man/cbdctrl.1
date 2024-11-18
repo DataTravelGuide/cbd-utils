@@ -82,9 +82,11 @@ COMMANDS
                  cbdctrl backend-stop -t 1 -b 3
 
         backend-list
-            List all backends on a specified transport.
+            List all backends on this host.
             -t, --transport <tid>
                  Specify the transport ID for listing backends.
+            -a, --all
+                 List backends on all hosts.
             -h, --help
                  Display help for this command.
             Example:
@@ -114,9 +116,11 @@ COMMANDS
                  cbdctrl dev-stop -t 1 -d 5
 
         dev-list
-            List all block devices.
+            List all block devices on this host.
             -t, --transport <tid>
                  Specify the transport ID.
+            -a, --all
+                 List all blkdevs on all hosts.
             -h, --help
                  Display help for this command.
             Example:

@@ -50,6 +50,7 @@ struct cbd_options
 	unsigned int		co_backend_id;
 	unsigned int		co_dev_id;
 	bool			co_start_dev;
+	bool			co_all;
 };
 
 /* Exports options as a global type */

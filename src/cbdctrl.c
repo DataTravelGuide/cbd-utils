@@ -62,8 +62,9 @@ static void usage ()
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
 
-	fprintf(stdout, "   backend-list    List all blkdevs\n");
+	fprintf(stdout, "   backend-list    List all backends on this host\n");
 	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -a, --all                    List backends on all hosts\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s backend-list\n\n", CBDCTL_PROGRAM_NAME);
 
@@ -80,8 +81,9 @@ static void usage ()
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s dev-stop --dev 0\n\n", CBDCTL_PROGRAM_NAME);
 
-	fprintf(stdout, "   dev-list        List all blkdevs\n");
+	fprintf(stdout, "   dev-list        List all blkdevs on this host\n");
 	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
+	fprintf(stdout, "                   -a, --all                    List blkdevs on all hosts\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s blkdev-list\n\n", CBDCTL_PROGRAM_NAME);
 }
@@ -122,6 +124,7 @@ static struct option long_options[] =
 	{"cache-size", required_argument,0, 'c'},
 	{"handlers", required_argument,0, 'n'},
 	{"force", no_argument, 0, 'F'},
+	{"all", no_argument, 0, 'a'},
 	{0, 0, 0, 0},
 };
 
@@ -176,7 +179,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "h:t:H:b:d:p:f:c:n:D:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "a:h:t:H:b:d:p:f:c:n:D:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -231,6 +234,9 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 				usage();
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 'a':
+			options->co_all = true;
 			break;
 		case 'D':
 			options->co_start_dev = true;
@@ -547,6 +553,9 @@ int cbdctrl_backend_list(cbd_opt_t *options)
 			continue;
 		}
 
+		if (!options->co_all && backend.host_id != cbdt.host_id)
+			continue;
+
 		// Create JSON object and add fields for the backend
 		json_t *json_backend = json_object();
 		json_object_set_new(json_backend, "backend_id", json_integer(backend.backend_id));
@@ -639,7 +648,7 @@ int cbdctrl_dev_stop(cbd_opt_t *options) {
 	return ret;
 }
 
-int cbdctrl_dev_list(cbd_opt_t *opt)
+int cbdctrl_dev_list(cbd_opt_t *options)
 {
 	struct cbd_transport cbdt;
 	json_t *array = json_array(); // Create JSON array
@@ -649,7 +658,7 @@ int cbdctrl_dev_list(cbd_opt_t *opt)
 	}
 
 	// Initialize cbd_transport
-	int ret = cbdsys_transport_init(&cbdt, opt->co_transport_id);
+	int ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
 	if (ret < 0) {
 		json_decref(array);
 		return ret;
@@ -662,6 +671,9 @@ int cbdctrl_dev_list(cbd_opt_t *opt)
 		if (ret < 0) {
 			continue;
 		}
+
+		if (!options->co_all && blkdev.host_id != cbdt.host_id)
+			continue;
 
 		// Create JSON object and add fields
 		json_t *json_blkdev = json_object();

@@ -124,7 +124,8 @@ static struct option long_options[] =
 	{0, 0, 0, 0},
 };
 
-unsigned int opt_to_MB(const char *input) {
+unsigned int opt_to_MB(const char *input)
+{
 	char *endptr;
 	unsigned long size = strtoul(input, &endptr, 10);
 
@@ -426,6 +427,88 @@ int cbdctrl_host_list(cbd_opt_t *opt)
 	return 0;
 }
 
+static int dev_start(unsigned int transport_id, unsigned int backend_id)
+{
+	char adm_path[CBD_PATH_LEN];
+	char cmd[CBD_PATH_LEN * 3] = { 0 };
+	struct sysfs_attribute *sysattr;
+	struct cbd_transport cbdt;
+	struct cbd_backend old_backend, new_backend;
+	bool found = false;
+	struct cbd_blkdev *found_dev = NULL;
+	int ret;
+
+	/* Initialize transport */
+	ret = cbdsys_transport_init(&cbdt, transport_id);
+	if (ret)
+		return ret;
+
+	/* Get information about the current backend */
+	ret = cbdsys_backend_init(&cbdt, &old_backend, backend_id);
+	if (ret) {
+		printf("Failed to get current backend information. Error: %d\n", ret);
+		return ret;
+	}
+
+	/* Clear block devices associated with the backend */
+	ret = cbdsys_backend_blkdevs_clear(&cbdt, backend_id);
+	if (ret)
+		return ret;
+
+	/* Prepare the dev-start command */
+	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", backend_id);
+
+	/* Get the sysfs attribute path */
+	transport_adm_path(transport_id, adm_path, sizeof(adm_path));
+	sysattr = sysfs_open_attribute(adm_path);
+	if (!sysattr) {
+		printf("Failed to open '%s'\n", adm_path);
+		return -1;
+	}
+
+	/* Write the dev-start command */
+	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
+	sysfs_close_attribute(sysattr);
+	if (ret != 0) {
+		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+		return ret;
+	}
+
+	/* Get information about the backend after dev-start */
+	ret = cbdsys_backend_init(&cbdt, &new_backend, backend_id);
+	if (ret) {
+		printf("Failed to get new backend information. Error: %d\n", ret);
+		return ret;
+	}
+
+	/* Compare old_backend and new_backend to identify new block devices */
+	if (new_backend.dev_num > old_backend.dev_num) {
+		for (unsigned int i = 0; i < new_backend.dev_num; i++) {
+			if (new_backend.blkdevs[i].host_id != cbdt.host_id)
+				continue;
+
+			for (unsigned int j = 0; j < old_backend.dev_num; j++) {
+				if (new_backend.blkdevs[i].blkdev_id == old_backend.blkdevs[j].blkdev_id)
+					goto next;
+				break;
+			}
+
+			found_dev = &new_backend.blkdevs[i];
+			break;
+next:
+			continue;
+		}
+	}
+
+	if (!found_dev) {
+		printf("No new block devices were added.\n");
+		return 1;
+	}
+
+	printf("%s\n", found_dev->dev_name);
+	return 0;
+}
+
 int cbdctrl_backend_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
@@ -559,89 +642,12 @@ int cbdctrl_backend_list(cbd_opt_t *options)
 }
 
 int cbdctrl_dev_start(cbd_opt_t *options) {
-	char adm_path[CBD_PATH_LEN];
-	char cmd[CBD_PATH_LEN * 3] = { 0 };
-	struct sysfs_attribute *sysattr;
-	struct cbd_transport cbdt;
-	struct cbd_backend old_backend, new_backend;
-	bool found = false;
-	struct cbd_blkdev *found_dev = NULL;
-	int ret;
-
 	if (options->co_backend_id == UINT_MAX) {
 		printf("--backend required for dev-start command\n");
 		return -EINVAL;
 	}
 
-	/* Initialize transport */
-	ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
-	if (ret)
-		return ret;
-
-	/* Get information about the current backend */
-	ret = cbdsys_backend_init(&cbdt, &old_backend, options->co_backend_id);
-	if (ret) {
-		printf("Failed to get current backend information. Error: %d\n", ret);
-		return ret;
-	}
-
-	/* Clear block devices associated with the backend */
-	ret = cbdsys_backend_blkdevs_clear(&cbdt, options->co_backend_id);
-	if (ret)
-		return ret;
-
-	/* Prepare the dev-start command */
-	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", options->co_backend_id);
-
-	/* Get the sysfs attribute path */
-	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
-	sysattr = sysfs_open_attribute(adm_path);
-	if (!sysattr) {
-		printf("Failed to open '%s'\n", adm_path);
-		return -1;
-	}
-
-	/* Write the dev-start command */
-	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
-	sysfs_close_attribute(sysattr);
-	if (ret != 0) {
-		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
-		return ret;
-	}
-
-	/* Get information about the backend after dev-start */
-	ret = cbdsys_backend_init(&cbdt, &new_backend, options->co_backend_id);
-	if (ret) {
-		printf("Failed to get new backend information. Error: %d\n", ret);
-		return ret;
-	}
-
-	/* Compare old_backend and new_backend to identify new block devices */
-	if (new_backend.dev_num > old_backend.dev_num) {
-		for (unsigned int i = 0; i < new_backend.dev_num; i++) {
-			if (new_backend.blkdevs[i].host_id != cbdt.host_id)
-				continue;
-
-			for (unsigned int j = 0; j < old_backend.dev_num; j++) {
-				if (new_backend.blkdevs[i].blkdev_id == old_backend.blkdevs[j].blkdev_id)
-					goto next;
-				break;
-			}
-
-			found_dev = &new_backend.blkdevs[i];
-			break;
-next:
-			continue;
-		}
-	}
-
-	if (found_dev) {
-		printf("%s\n", found_dev->dev_name);
-		return 0;
-	} else {
-		printf("No new block devices were added.\n");
-		return 1;
-	}
+	return dev_start(options->co_transport_id, options->co_backend_id);
 }
 
 #define MAX_RETRIES 3

@@ -53,6 +53,7 @@ static void usage ()
 	fprintf(stdout, "                   -p, --path <path>            Specify backend path\n");
 	fprintf(stdout, "                   -c, --cache-size <size>      Set cache size (units: K, M, G)\n");
 	fprintf(stdout, "                   -n, --handlers <count>       Set handler count (max %d)\n", CBD_BACKEND_HANDLERS_MAX);
+	fprintf(stdout, "                   -D, --start-dev              Start a blkdev at the same time\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s backend-start -p /path -c 512M -n 1\n\n", CBDCTL_PROGRAM_NAME);
 
@@ -115,6 +116,7 @@ static struct option long_options[] =
 	{"transport", required_argument,0, 't'},
 	{"host", required_argument,0, 'H'},
 	{"backend", required_argument,0, 'b'},
+	{"start-dev", no_argument, 0, 'D'},
 	{"dev", required_argument,0, 'd'},
 	{"path", required_argument,0, 'p'},
 	{"format", no_argument, 0, 'f'},
@@ -175,7 +177,7 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 	while (true) {
 		int option_index = 0;
 
-		arg = getopt_long(argc, argv, "h:t:H:b:d:p:f:c:n:F", long_options, &option_index);
+		arg = getopt_long(argc, argv, "h:t:H:b:d:p:f:c:n:D:F", long_options, &option_index);
 		/* End of the options? */
 		if (arg == -1) {
 			break;
@@ -230,6 +232,9 @@ void cbd_options_parser(int argc, char* argv[], cbd_opt_t* options)
 				usage();
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 'D':
+			options->co_start_dev = true;
 			break;
 		case '?':
 			usage();
@@ -513,7 +518,11 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
+	struct cbd_transport cbdt;
+	unsigned int backend_id;
 	int ret;
+
+	cbdsys_transport_init(&cbdt, options->co_transport_id);
 
 	snprintf(cmd, sizeof(cmd), "op=backend-start,path=%s", options->co_path);
 
@@ -539,9 +548,19 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 	sysfs_close_attribute(sysattr);
 	if (ret != 0) {
 		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+		return ret;
 	}
 
-	return ret;
+	ret = cbdsys_find_backend_id_from_path(&cbdt, options->co_path, &backend_id);
+	if (ret) {
+		printf("Backend for host: %u path: %s not found\n", cbdt.host_id, options->co_path);
+		return ret;
+	}
+
+	if (options->co_start_dev)
+		return dev_start(options->co_transport_id, backend_id);
+
+	return 0;
 }
 
 int cbdctrl_backend_stop(cbd_opt_t *options) {

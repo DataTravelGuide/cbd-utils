@@ -179,8 +179,6 @@ int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
 	/* Ensure null-termination of the string in cbdt->path */
 	cbdt->path[CBD_PATH_LEN - 1] = '\0';
 
-
-
 	transport_host_id_path(transport_id, path, CBD_PATH_LEN);
 
 	/* Open the file for reading */
@@ -402,4 +400,27 @@ int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend,
 	}
 
 	return 0;
+}
+
+int cbdsys_find_backend_id_from_path(struct cbd_transport *cbdt, char *path, unsigned int *backend_id)
+{
+	int ret;
+
+	for (unsigned int i = 0; i < cbdt->backend_num; i++) {
+		struct cbd_backend backend = { 0 };
+
+		ret = cbdsys_backend_init(cbdt, &backend, i);
+		if (ret)
+			continue;
+
+		if (backend.host_id != cbdt->host_id)
+			continue;
+
+		if (strcmp(backend.backend_path, path) == 0) {
+			*backend_id = backend.backend_id;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
 }

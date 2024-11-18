@@ -29,7 +29,7 @@ _cbdctrl_completion() {
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 backend-start)
-                    sub_commands="-t --transport -p --path -c --cache-size -n --handlers -h --help"
+                    sub_commands="-t --transport -p --path -c --cache-size -n --handlers -D --start-dev -h --help"
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 backend-stop)
@@ -37,7 +37,7 @@ _cbdctrl_completion() {
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 backend-list)
-                    sub_commands="-t --transport -h --help"
+                    sub_commands="-t --transport -a --all -h --help"
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 dev-start)
@@ -49,7 +49,7 @@ _cbdctrl_completion() {
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 dev-list)
-                    sub_commands="-t --transport -h --help"
+                    sub_commands="-t --transport -a --all -h --help"
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
             esac

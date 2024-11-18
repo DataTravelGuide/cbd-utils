@@ -179,6 +179,27 @@ int cbdsys_transport_init(struct cbd_transport *cbdt, int transport_id) {
 	/* Ensure null-termination of the string in cbdt->path */
 	cbdt->path[CBD_PATH_LEN - 1] = '\0';
 
+
+
+	transport_host_id_path(transport_id, path, CBD_PATH_LEN);
+
+	/* Open the file for reading */
+	file = fopen(path, "r");
+	if (file == NULL) {
+		perror("Error opening file");
+		return -errno;
+	}
+
+	/* Read unsigned int from the file and set cbdt->host_id */
+	if (fscanf(file, "%u", &cbdt->host_id) != 1) {
+		fprintf(stderr, "Error reading host_id from file: %s\n", path);
+		fclose(file);
+		return -EINVAL;
+	}
+
+	/* Close the file */
+	fclose(file);
+
 	return 0;
 }
 
@@ -358,7 +379,6 @@ int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend,
 		return ret;
 	}
 	backend->gc_percent = (unsigned int)atoi(buf);
-
 
 	// Initialize block devices
 	backend->dev_num = 0;

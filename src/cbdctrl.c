@@ -309,19 +309,13 @@ int cbdctrl_transport_register(cbd_opt_t *opt)
 	if (ret != 0) {
 		printf("failed to write %s to %s, exit!\n", tr_buff, SYSFS_CBD_TRANSPORT_REGISTER);
 		ret = -1;
+		goto err_out;
 	}
+	ret = 0;
 err_out:
 	if (sysattr != NULL) {
 		sysfs_close_attribute(sysattr);
 	}
-
-	struct cbd_transport cbdt = { 0 };
-
-	ret = cbdsys_transport_init(&cbdt, 0);
-	if (ret)
-		printf("ret of cbdsys_transport_init(): %d\n", ret);
-
-	cbd_transport_to_json(&cbdt);
 
 	return ret;
 }
@@ -564,12 +558,14 @@ int cbdctrl_backend_list(cbd_opt_t *options)
 	return 0;
 }
 
-
 int cbdctrl_dev_start(cbd_opt_t *options) {
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	struct sysfs_attribute *sysattr;
 	struct cbd_transport cbdt;
+	struct cbd_backend old_backend, new_backend;
+	bool found = false;
+	struct cbd_blkdev *found_dev = NULL;
 	int ret;
 
 	if (options->co_backend_id == UINT_MAX) {
@@ -577,16 +573,27 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 		return -EINVAL;
 	}
 
+	/* Initialize transport */
 	ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
 	if (ret)
 		return ret;
 
+	/* Get information about the current backend */
+	ret = cbdsys_backend_init(&cbdt, &old_backend, options->co_backend_id);
+	if (ret) {
+		printf("Failed to get current backend information. Error: %d\n", ret);
+		return ret;
+	}
+
+	/* Clear block devices associated with the backend */
 	ret = cbdsys_backend_blkdevs_clear(&cbdt, options->co_backend_id);
 	if (ret)
 		return ret;
 
+	/* Prepare the dev-start command */
 	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", options->co_backend_id);
 
+	/* Get the sysfs attribute path */
 	transport_adm_path(options->co_transport_id, adm_path, sizeof(adm_path));
 	sysattr = sysfs_open_attribute(adm_path);
 	if (!sysattr) {
@@ -594,13 +601,47 @@ int cbdctrl_dev_start(cbd_opt_t *options) {
 		return -1;
 	}
 
+	/* Write the dev-start command */
 	ret = sysfs_write_attribute(sysattr, cmd, strlen(cmd));
 	sysfs_close_attribute(sysattr);
 	if (ret != 0) {
 		printf("Failed to write command '%s'. Error: %s\n", cmd, strerror(ret));
+		return ret;
 	}
 
-	return ret;
+	/* Get information about the backend after dev-start */
+	ret = cbdsys_backend_init(&cbdt, &new_backend, options->co_backend_id);
+	if (ret) {
+		printf("Failed to get new backend information. Error: %d\n", ret);
+		return ret;
+	}
+
+	/* Compare old_backend and new_backend to identify new block devices */
+	if (new_backend.dev_num > old_backend.dev_num) {
+		for (unsigned int i = 0; i < new_backend.dev_num; i++) {
+			if (new_backend.blkdevs[i].host_id != cbdt.host_id)
+				continue;
+
+			for (unsigned int j = 0; j < old_backend.dev_num; j++) {
+				if (new_backend.blkdevs[i].blkdev_id == old_backend.blkdevs[j].blkdev_id)
+					goto next;
+				break;
+			}
+
+			found_dev = &new_backend.blkdevs[i];
+			break;
+next:
+			continue;
+		}
+	}
+
+	if (found_dev) {
+		printf("%s\n", found_dev->dev_name);
+		return 0;
+	} else {
+		printf("No new block devices were added.\n");
+		return 1;
+	}
 }
 
 #define MAX_RETRIES 3

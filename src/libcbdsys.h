@@ -19,6 +19,11 @@ static inline void transport_path_path(int transport_id, char *buffer, size_t bu
 	snprintf(buffer, buffer_size, "%s%u/path", SYSFS_TRANSPORT_BASE_PATH, transport_id);
 }
 
+static inline void transport_host_id_path(int transport_id, char *buffer, size_t buffer_size)
+{
+	snprintf(buffer, buffer_size, "%s%u/host_id", SYSFS_TRANSPORT_BASE_PATH, transport_id);
+}
+
 static inline void transport_adm_path(int transport_id, char *buffer, size_t buffer_size)
 {
 	/* Generate the path with transport_id */

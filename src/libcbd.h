@@ -21,6 +21,7 @@ struct cbd_transport {
 	unsigned int segment_num;
 	char path[CBD_PATH_LEN];
 	unsigned int transport_id;
+	unsigned int host_id;
 };
 
 struct cbd_host {

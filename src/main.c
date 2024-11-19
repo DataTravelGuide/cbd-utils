@@ -3,8 +3,34 @@
 
 #include "cbdctrl.h"
 
-static int cbdctrl_run(cbd_opt_t *options) {
+/* Function to check if a kernel module is loaded */
+static int is_module_loaded(const char *module_name)
+{
+	char command[128];
+	snprintf(command, sizeof(command), "lsmod | grep -q '^%s '", module_name);
+	return system(command) == 0;
+}
+
+/* Function to load a kernel module */
+static int load_module(const char *module_name)
+{
+	char command[128];
+	snprintf(command, sizeof(command), "modprobe %s", module_name);
+	return system(command);
+}
+
+static int cbdctrl_run(cbd_opt_t *options)
+{
 	int ret = 0;
+
+	/* Check if 'cbd' module is loaded */
+	if (!is_module_loaded("cbd")) {
+		if (load_module("cbd") != 0) {
+			fprintf(stderr, "Failed to load 'cbd' module. Exiting.\n");
+			return -1; /* Return an error if module cannot be loaded */
+		}
+	}
+
 	switch (options->co_cmd) {
 		case CCT_TRANSPORT_REGISTER:
 			ret = cbdctrl_transport_register(options);

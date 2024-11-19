@@ -289,6 +289,8 @@ json_t *cbd_transport_to_json(struct cbd_transport *cbdt) {
 	json_object_set_new(json_obj, "segment_area_off", json_integer(cbdt->segment_area_off));
 	json_object_set_new(json_obj, "bytes_per_segment", json_integer(cbdt->bytes_per_segment));
 	json_object_set_new(json_obj, "segment_num", json_integer(cbdt->segment_num));
+	json_object_set_new(json_obj, "transport_id", json_integer(cbdt->transport_id));
+	json_object_set_new(json_obj, "host_id", json_integer(cbdt->host_id));
 
 	/* Add path as a JSON string */
 	json_object_set_new(json_obj, "path", json_string(cbdt->path));

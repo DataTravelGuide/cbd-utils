@@ -33,7 +33,7 @@ _cbdctrl_completion() {
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 backend-stop)
-                    sub_commands="-t --transport -b --backend -h --help"
+                    sub_commands="-t --transport -b --backend -F --force -h --help"
                     COMPREPLY=( $(compgen -W "${sub_commands}" -- "$cur") )
                     ;;
                 backend-list)

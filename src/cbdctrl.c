@@ -59,6 +59,7 @@ static void usage ()
 	fprintf(stdout, "   backend-stop    Stop a backend\n");
 	fprintf(stdout, "                   -t, --transport <tid>        Specify transport ID\n");
 	fprintf(stdout, "                   -b, --backend <bid>          Specify backend ID\n");
+	fprintf(stdout, "                   -F, --force                  Force stop backend\n");
 	fprintf(stdout, "                   -h, --help                   Print this help message\n");
 	fprintf(stdout, "                   Example: %s backend-stop --backend 0\n\n", CBDCTL_PROGRAM_NAME);
 
@@ -419,17 +420,17 @@ static int dev_start(unsigned int transport_id, unsigned int backend_id)
 	if (ret)
 		return ret;
 
+	/* Clear block devices associated with the backend */
+	ret = cbdsys_backend_blkdevs_clear(&cbdt, backend_id);
+	if (ret)
+		return ret;
+
 	/* Get information about the current backend */
 	ret = cbdsys_backend_init(&cbdt, &old_backend, backend_id);
 	if (ret) {
 		printf("Failed to get current backend information. Error: %d\n", ret);
 		return ret;
 	}
-
-	/* Clear block devices associated with the backend */
-	ret = cbdsys_backend_blkdevs_clear(&cbdt, backend_id);
-	if (ret)
-		return ret;
 
 	/* Prepare the dev-start command */
 	snprintf(cmd, sizeof(cmd), "op=dev-start,backend_id=%u", backend_id);
@@ -516,6 +517,7 @@ int cbdctrl_backend_start(cbd_opt_t *options) {
 }
 
 int cbdctrl_backend_stop(cbd_opt_t *options) {
+	struct cbd_transport cbdt;
 	char adm_path[CBD_PATH_LEN];
 	char cmd[CBD_PATH_LEN * 3] = { 0 };
 	int ret;
@@ -523,6 +525,19 @@ int cbdctrl_backend_stop(cbd_opt_t *options) {
 	if (options->co_backend_id == UINT_MAX) {
 		printf("--backend required for backend-stop command\n");
 		return -EINVAL;
+	}
+
+	ret = cbdsys_transport_init(&cbdt, options->co_transport_id);
+	if (ret) {
+		printf("tranposrt for id %u not found.", options->co_transport_id);
+		return ret;
+	}
+
+	if (options->co_force) {
+		/* Clear block devices associated with the backend */
+		ret = cbdsys_backend_blkdevs_clear(&cbdt, options->co_backend_id);
+		if (ret)
+			return ret;
 	}
 
 	snprintf(cmd, sizeof(cmd), "op=backend-stop,backend_id=%u", options->co_backend_id);

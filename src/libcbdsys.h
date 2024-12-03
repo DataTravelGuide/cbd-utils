@@ -48,7 +48,7 @@ CBDSYS_PATH(backend, host_id)
 CBDSYS_PATH(backend, path)
 CBDSYS_PATH(backend, alive)
 CBDSYS_PATH(backend, cache_segs)
-CBDSYS_PATH(backend, gc_percent)
+CBDSYS_PATH(backend, cache_gc_percent)
 
 int cbdsys_backend_blkdevs_clear(struct cbd_transport *cbdt, unsigned int backend_id);
 

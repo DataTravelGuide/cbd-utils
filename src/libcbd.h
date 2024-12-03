@@ -47,6 +47,7 @@ struct cbd_backend {
 	bool alive;
 	unsigned int cache_segs;
 	unsigned int cache_gc_percent;
+	unsigned int cache_used_segs;
 	unsigned int dev_num;
 	struct cbd_blkdev blkdevs[CBDB_BLKDEV_COUNT_MAX];
 };

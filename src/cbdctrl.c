@@ -581,6 +581,7 @@ int cbdctrl_backend_list(cbd_opt_t *options)
 		json_object_set_new(json_backend, "alive", json_boolean(backend.alive));
 		json_object_set_new(json_backend, "cache_segs", json_integer(backend.cache_segs));
 		json_object_set_new(json_backend, "cache_gc_percent", json_integer(backend.cache_gc_percent));
+		json_object_set_new(json_backend, "cache_used_segs", json_integer(backend.cache_used_segs));
 
 		// Create JSON array for blkdevs within the backend
 		json_t *json_blkdevs = json_array();

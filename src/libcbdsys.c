@@ -378,6 +378,13 @@ int cbdsys_backend_init(struct cbd_transport *cbdt, struct cbd_backend *backend,
 	}
 	backend->cache_gc_percent = (unsigned int)atoi(buf);
 
+	backend_cache_used_segs_path(cbdt->transport_id, backend_id, path, CBD_PATH_LEN);
+	ret = read_sysfs_value(path, buf, sizeof(buf));
+	if (ret < 0) {
+		return ret;
+	}
+	backend->cache_used_segs = (unsigned int)atoi(buf);
+
 	// Initialize block devices
 	backend->dev_num = 0;
 	for (unsigned int i = 0; i < cbdt->blkdev_num; i++) {
